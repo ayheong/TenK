@@ -1,0 +1,36 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Local AI related stuffs
+.cursor/
+CONTEXT.md
+
+# EDGAR filing cache
+data/cache/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# SQLite (local dev DB)
+*.db
+
+# Node / frontend 
+node_modules/
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
