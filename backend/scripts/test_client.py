@@ -6,7 +6,8 @@ from pathlib import Path
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 from app.edgar.client import Client
+from app.edgar.resolve import lookup_cik
 
 client = Client()
-response = client.get_json("https://www.sec.gov/files/company_tickers.json")
-print(len(response))
+cik = lookup_cik(client, "AAPL")
+print(cik)
