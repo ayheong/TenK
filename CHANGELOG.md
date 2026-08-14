@@ -4,6 +4,18 @@ All notable changes to TenK are recorded here, newest first.
 
 ## Unreleased
 
+- Added `app/parser`: `extract_items` splits cached 10-K HTML into raw text
+  per Item number (1, 1A, 7, 8, 9A), needed before qualitative sections can
+  be extracted with an LLM. Skips the table of contents (detected as a
+  tight cluster of heading matches near the top) and, critically, anchors
+  heading matches to the start of an HTML block so a cross-reference
+  mid-sentence (e.g. "...appearing under Item 9A." inside an auditor's
+  report) isn't mistaken for a real heading — an earlier version of this
+  without the anchor silently truncated TSLA's Item 8 from ~172K chars to
+  ~2.7K. Items it can't confidently locate are reported as not-found with
+  a reason rather than guessed at. 20/20 target sections found across
+  AAPL/TSLA/NVDA/MSFT.
+
 - Added `current_assets`/`current_liabilities` as canonical metrics and
   `working_capital_ratio` as a derived ratio, completing the four derived
   metrics named in CONTEXT.md's spec. Verified against AAPL/TSLA/NVDA —
