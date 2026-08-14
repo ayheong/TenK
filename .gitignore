@@ -8,7 +8,7 @@
 CONTEXT.md
 
 # EDGAR filing cache
-data/cache/
+**/data/cache/
 
 # Python
 __pycache__/

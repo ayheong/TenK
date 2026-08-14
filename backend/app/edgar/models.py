@@ -3,6 +3,13 @@ from datetime import date
 from pydantic import BaseModel
 
 
+class FilingSummary(BaseModel):
+    accession: str
+    filing_date: str
+    primary_document: str
+    fiscal_year_end: str | None = None
+
+
 class FilingRecord(BaseModel):
     ticker: str
     cik: int
