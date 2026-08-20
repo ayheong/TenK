@@ -4,6 +4,16 @@ All notable changes to TenK are recorded here, newest first.
 
 ## Unreleased
 
+- Added `app/parser/anchors.py`: `extract_keyword_anchored_text` pulls just
+  the text around keyword matches out of a large section (e.g. the
+  related-party-transactions footnote inside Item 8's full financial
+  statements), instead of sending the whole section to an LLM. Merges
+  nearby matches into one excerpt; reports `found=False` honestly when no
+  keyword appears at all, rather than an empty match. Verified against
+  real Item 8 sections: 96–98% size reduction on TSLA/MSFT; correctly
+  reports "not found" for AAPL (no related-party disclosure) and NVDA
+  (financials live outside this section) rather than guessing.
+
 - Added `app/parser`: `extract_items` splits cached 10-K HTML into raw text
   per Item number (1, 1A, 7, 8, 9A), needed before qualitative sections can
   be extracted with an LLM. Skips the table of contents (detected as a
