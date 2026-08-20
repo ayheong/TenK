@@ -4,6 +4,24 @@ All notable changes to TenK are recorded here, newest first.
 
 ## Unreleased
 
+- Fixed `extract_items`: some filers (NVIDIA, JPMorgan, Chevron) satisfy
+  Item 8 with a short cross-reference notice instead of placing the
+  financial statements at that heading — the real statements sit
+  elsewhere in the document, sometimes inside a later Item, sometimes in
+  an unlabeled block with no Item number of its own. Previously this
+  returned `found=True` with the ~200-char notice itself, silently
+  passing off a redirect as real content. Now searches forward from Item
+  8 for the actual "Report of Independent Registered Public Accounting
+  Firm" heading, distinguishing it from the (also present) index entry by
+  what follows: a bare page number for the index, real prose for the
+  report. Verified across a 12-filer test collection spanning tech,
+  banking, energy, pharma, and retail (AAPL/MSFT/TSLA/NVDA/GOOG/AMZN/JPM/
+  JNJ/KO/WMT/CVX/PLTR) — all 12 now return real Item 8 content, 3 via the
+  redirect path. Item 7 (MD&A) has the same cross-reference problem for
+  JPM/CVX but no reliable equivalent anchor (its title phrase is reused
+  in narrative cross-references elsewhere, unlike the audit report
+  heading) — left as an honest short stub rather than guessed at.
+
 - Added `app/parser/anchors.py`: `extract_keyword_anchored_text` pulls just
   the text around keyword matches out of a large section (e.g. the
   related-party-transactions footnote inside Item 8's full financial
