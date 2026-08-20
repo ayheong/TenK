@@ -28,6 +28,29 @@ MIN_SECTION_LENGTH = 200
 # would silently truncate the real section at the wrong point.
 ITEM_PATTERN = re.compile(r"(?m)^\s*Item\s+(\d{1,2}[A-Za-z]?)\.", re.IGNORECASE)
 
+# Some filers (e.g. NVIDIA, JPMorgan, Chevron) satisfy Item 8 with a short
+# cross-reference notice ("set forth on page 162", "incorporated by
+# reference", "see the Financial Table of Contents") instead of placing
+# the financial statements at that point in the document — the real
+# statements sit elsewhere, sometimes inside a later Item (e.g. Item 15),
+# sometimes in an unlabeled block with no Item number of its own. A found
+# Item 8 section this short is essentially always such a stub — real
+# financial statements run tens of thousands of characters at minimum —
+# regardless of the exact wording used, so length alone is the trigger.
+ITEM_8_REDIRECT_MAX_LENGTH = 1500
+
+# The heading that opens the audited financial statements block. Every
+# filer's index-of-financial-statements also contains this exact phrase,
+# so the heading text alone can't tell a real section start from an index
+# entry — but what immediately follows can: an index entry is followed by
+# a bare page number (same line or its own line, filer-dependent), while
+# the real heading is followed by the report's actual prose.
+AUDITOR_REPORT_HEADING = re.compile(
+    r"(?m)^\s*Report of Independent Registered Public Accounting Firm\b.*$",
+    re.IGNORECASE,
+)
+PAGE_NUMBER_LINE = re.compile(r"^[\d\s\-–—]+$")
+
 _BLOCK_END_TAGS = re.compile(r"</(p|div|td|tr|li|h[1-6])\s*>", re.IGNORECASE)
 _BR_TAG = re.compile(r"<br\s*/?>", re.IGNORECASE)
 
@@ -92,6 +115,11 @@ def _extract_one(
     end_pos = _next_boundary(key, body, start_index)
     section_text = text[start_pos:end_pos].strip()
 
+    if key == "8" and len(section_text) < ITEM_8_REDIRECT_MAX_LENGTH:
+        redirected = _resolve_item_8_redirect(body, start_pos, text)
+        if redirected is not None:
+            return redirected
+
     if len(section_text) < MIN_SECTION_LENGTH:
         return ItemSection(
             item_number=key,
@@ -104,6 +132,50 @@ def _extract_one(
         )
 
     return ItemSection(item_number=key, found=True, text=section_text)
+
+
+def _resolve_item_8_redirect(
+    body: list[tuple[int, str]], item_8_start: int, text: str
+) -> ItemSection | None:
+    """Some filers satisfy Item 8 with a short cross-reference notice and
+    place the actual financial statements elsewhere in the document —
+    not necessarily inside another Item's boundary (some sit in an
+    unlabeled block ahead of Item 15, some inside Item 15 itself).
+    Search forward from Item 8's heading for the real opening of the
+    audited financial statements, distinguishing it from the (also
+    present) index-of-financial-statements entry by what follows it: a
+    bare page number for the index, real prose for the actual report.
+    Slices to the next Item heading found after that point, or to the
+    end of the filing if none follows. Returns None if no such heading
+    can be confidently located — the caller falls back to the (honest,
+    if unhelpful) redirect notice in that case."""
+    search_from = item_8_start
+    while True:
+        match = AUDITOR_REPORT_HEADING.search(text, search_from)
+        if match is None:
+            return None
+
+        rest = text[match.end():]
+        next_line = next((line for line in rest.split("\n") if line.strip()), "")
+        if not PAGE_NUMBER_LINE.match(next_line.strip()):
+            break
+        search_from = match.end()
+
+    end_pos = next((pos for pos, _ in body if pos > match.start()), None)
+    financials_text = text[match.start():end_pos].strip()
+    if len(financials_text) < MIN_SECTION_LENGTH:
+        return None
+
+    return ItemSection(
+        item_number="8",
+        found=True,
+        text=financials_text,
+        reason=(
+            "Item 8 body was a short cross-reference notice; the actual "
+            "financial statements are located elsewhere in the filing — "
+            "text below is sourced from there."
+        ),
+    )
 
 
 def _next_boundary(
