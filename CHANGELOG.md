@@ -4,6 +4,30 @@ All notable changes to TenK are recorded here, newest first.
 
 ## Unreleased
 
+- Added `app/extraction`: Layer 2 qualitative extraction. `extract_qualitative`
+  takes a resolved filing (and optionally its prior year) and returns a
+  `QualitativeExtraction` bundling five schema-constrained Claude calls —
+  risk-factor changes vs prior year (Item 1A), management tone / forward
+  guidance (Item 7), going-concern & material-weakness (Item 8 / 9A),
+  related-party transactions (Item 8 notes), and revenue concentration
+  (Item 1 / Item 7). Each result carries provenance: a section the parser
+  can't locate is recorded `found=False` with no API call; a section found
+  but whose call fails or is refused is `found=True` with `error` set, so
+  one bad section never sinks the filing. Large sections are keyword-anchored
+  (reusing `anchors.py`) before being sent, and the related-party / revenue-
+  concentration extractors skip the API entirely and return a structured
+  negative when no relevant keyword appears. Output schemas
+  (`app/extraction/models.py`) use booleans and enums close to what Layer 2.5
+  risk scoring will consume. Model defaults to `claude-opus-5`, overridable
+  via `TENK_EXTRACTION_MODEL`. Uses the Anthropic SDK's `messages.parse`
+  (structured outputs) with adaptive thinking. 10 tests, all with a fake LLM
+  — no network in CI.
+- Added `resolve_filing_pair`: resolves the latest 10-K plus the prior
+  year's, both with cached HTML, for year-over-year qualitative diffs.
+  `resolve_filing` refactored onto a shared `_build_filing_record` helper
+  (behavior unchanged).
+- Added `anthropic>=1.2` as a dependency.
+
 - Fixed `extract_items`: some filers (NVIDIA, JPMorgan, Chevron) satisfy
   Item 8 with a short cross-reference notice instead of placing the
   financial statements at that heading — the real statements sit

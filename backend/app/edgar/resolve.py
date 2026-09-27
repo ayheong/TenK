@@ -83,6 +83,28 @@ def fetch_filing_html(
     return path
 
 
+def _build_filing_record(
+    client: Client,
+    ticker: str,
+    cik: int,
+    summary: FilingSummary,
+    prior_accession: str | None,
+) -> FilingRecord:
+    cached = fetch_filing_html(
+        client, cik, summary.accession, summary.primary_document
+    )
+    return FilingRecord(
+        ticker=ticker.upper(),
+        cik=cik,
+        accession=summary.accession,
+        filing_date=summary.filing_date,
+        fiscal_year_end=summary.fiscal_year_end,
+        html_url=filing_document_url(cik, summary.accession, summary.primary_document),
+        cached_path=str(cached),
+        prior_accession=prior_accession,
+    )
+
+
 def resolve_filing(ticker: str) -> FilingRecord:
     """Ticker → latest 10-K metadata + cached HTML under data/cache/."""
     client = Client()
@@ -91,17 +113,26 @@ def resolve_filing(ticker: str) -> FilingRecord:
     if not filings:
         raise ValueError(f"No 10-K found for CIK {cik}")
 
-    latest = filings[0]
     prior_accession = filings[1].accession if len(filings) > 1 else None
-    cached = fetch_filing_html(client, cik, latest.accession, latest.primary_document)
+    return _build_filing_record(client, ticker, cik, filings[0], prior_accession)
 
-    return FilingRecord(
-        ticker=ticker.upper(),
-        cik=cik,
-        accession=latest.accession,
-        filing_date=latest.filing_date,
-        fiscal_year_end=latest.fiscal_year_end,
-        html_url=filing_document_url(cik, latest.accession, latest.primary_document),
-        cached_path=str(cached),
-        prior_accession=prior_accession,
-    )
+
+def resolve_filing_pair(ticker: str) -> tuple[FilingRecord, FilingRecord | None]:
+    """Latest 10-K plus the prior year's, both with cached HTML. The prior
+    record is None when only one 10-K exists (e.g. a recent IPO). Needed
+    for year-over-year qualitative diffs (Item 1A risk-factor changes)."""
+    client = Client()
+    cik = lookup_cik(client, ticker)
+    filings = find_10k_filings(client, cik)
+    if not filings:
+        raise ValueError(f"No 10-K found for CIK {cik}")
+
+    prior_accession = filings[1].accession if len(filings) > 1 else None
+    current = _build_filing_record(client, ticker, cik, filings[0], prior_accession)
+
+    prior = None
+    if len(filings) > 1:
+        prior_prior = filings[2].accession if len(filings) > 2 else None
+        prior = _build_filing_record(client, ticker, cik, filings[1], prior_prior)
+
+    return current, prior

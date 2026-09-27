@@ -3,12 +3,26 @@
 .env.*
 !.env.example
 
-# Local AI related stuffs
+# Local AI / agent / project-planning stuff - never tracked
 .cursor/
+.claude/
+CLAUDE.md
 CONTEXT.md
+ROADMAP.md
+PLAN.md
+PLANNING.md
+NOTES.md
+TODO.md
+docs/planning/
+.planning/
 
 # EDGAR filing cache
 **/data/cache/
+
+# Phase 2 backtesting datasets (point-in-time index constituents, price
+# history, etc.) - large, sourced externally, not for git
+**/data/research/
+**/data/backtest/
 
 # Python
 __pycache__/
