@@ -7,10 +7,12 @@
 # fails/refuses is recorded found=True with `error` set - one bad section
 # never sinks the rest of the filing.
 
+import os
 from pathlib import Path
+from typing import Literal
 
 from app.edgar.models import FilingRecord
-from app.extraction import extractors, models
+from app.extraction import extractors, models, rules, tone
 from app.extraction.llm import ExtractionError, LLMClient
 from app.parser.anchors import extract_keyword_anchored_text
 from app.parser.items import extract_items
@@ -102,6 +104,7 @@ def _section(
     *,
     found: bool,
     parsed: models.ParsedExtraction | None = None,
+    method: Literal["llm", "rules"] = "llm",
     error: str | None = None,
     reason: str | None = None,
     source_chars: int = 0,
@@ -111,6 +114,7 @@ def _section(
         item_number=item_number,
         found=found,
         parsed=parsed,
+        method=method,
         error=error,
         reason=reason,
         source_chars=source_chars,
@@ -169,6 +173,13 @@ def _run_management_tone(
     if not item_7.found:
         return _section("management_tone", "7", found=False, reason=item_7.reason)
 
+    if os.getenv("TENK_TONE_METHOD", "rules") == "rules":
+        by_rules = tone.extract_management_tone_by_rules(item_7.text)
+        if by_rules is not None:
+            return _section(
+                "management_tone", "7", found=True, parsed=by_rules, method="rules"
+            )
+
     text, note = _truncate(item_7.text)
     return _guarded(
         "management_tone",
@@ -202,6 +213,15 @@ def _run_going_concern(
             reason="neither Item 8 nor Item 9A was located in the filing",
         )
 
+    by_rules = rules.extract_going_concern_by_rules(
+        item_8.text if item_8.found else None,
+        item_9a.text if item_9a.found else None,
+    )
+    if by_rules is not None:
+        return _section(
+            "going_concern", "8", found=True, parsed=by_rules, method="rules"
+        )
+
     text = "\n\n".join(parts)
     return _guarded(
         "going_concern",
@@ -212,9 +232,7 @@ def _run_going_concern(
     )
 
 
-def _run_related_party(
-    llm: LLMClient, item_8: ItemSection
-) -> models.SectionExtraction:
+def _run_related_party(llm: LLMClient, item_8: ItemSection) -> models.SectionExtraction:
     if not item_8.found:
         return _section("related_party", "8", found=False, reason=item_8.reason)
 

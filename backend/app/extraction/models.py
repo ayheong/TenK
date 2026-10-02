@@ -166,6 +166,10 @@ class SectionExtraction(BaseModel):
     item_number: str
     found: bool
     parsed: ParsedExtraction | None = None
+    method: Literal["llm", "rules"] = Field(
+        default="llm",
+        description="Whether `parsed` came from the LLM or deterministic rules",
+    )
     source_chars: int = Field(
         default=0, description="Characters of section text sent to the LLM"
     )

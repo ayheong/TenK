@@ -267,9 +267,7 @@ def test_pipeline_captures_llm_error_per_section(tmp_path) -> None:
 
 
 def test_pipeline_skips_llm_when_no_related_party_language(tmp_path) -> None:
-    filing = _write_filing(
-        tmp_path, "current.htm", _filing_html(related_party=False)
-    )
+    filing = _write_filing(tmp_path, "current.htm", _filing_html(related_party=False))
     llm = FakeLLM(responses=DEFAULT_RESPONSES)
 
     result = extract_qualitative(filing, None, llm=llm)
@@ -281,9 +279,7 @@ def test_pipeline_skips_llm_when_no_related_party_language(tmp_path) -> None:
 
 
 def test_pipeline_skips_llm_when_no_concentration_language(tmp_path) -> None:
-    filing = _write_filing(
-        tmp_path, "current.htm", _filing_html(concentration=False)
-    )
+    filing = _write_filing(tmp_path, "current.htm", _filing_html(concentration=False))
     llm = FakeLLM(responses=DEFAULT_RESPONSES)
 
     result = extract_qualitative(filing, None, llm=llm)
@@ -292,3 +288,33 @@ def test_pipeline_skips_llm_when_no_concentration_language(tmp_path) -> None:
     assert section.found is True
     assert section.parsed.customer_concentration is False
     assert all(c[0] is not models.RevenueConcentration for c in llm.calls)
+
+
+def test_pipeline_uses_rules_for_going_concern_without_calling_llm(tmp_path) -> None:
+    filing = _write_filing(tmp_path, "current.htm", _filing_html())
+    llm = FakeLLM(responses=DEFAULT_RESPONSES)
+
+    result = extract_qualitative(filing, None, llm=llm)
+
+    section = result.going_concern
+    assert section.method == "rules"
+    assert section.found is True
+    assert section.source_chars == 0
+    assert section.parsed.auditor_opinion_type == "unqualified"
+    assert not section.parsed.material_weakness
+    assert all(c[0] is not models.GoingConcernOpinion for c in llm.calls)
+
+
+def test_pipeline_falls_back_to_llm_when_rules_are_undecided(tmp_path) -> None:
+    html = _filing_html().replace(
+        "Item 9A. Controls and Procedures. Management concluded",
+        "Item 9A. Controls and Procedures. The prior material weakness was "
+        "remediated. Management concluded",
+    )
+    filing = _write_filing(tmp_path, "current.htm", html)
+    llm = FakeLLM(responses=DEFAULT_RESPONSES)
+
+    result = extract_qualitative(filing, None, llm=llm)
+
+    assert result.going_concern.method == "llm"
+    assert any(c[0] is models.GoingConcernOpinion for c in llm.calls)
