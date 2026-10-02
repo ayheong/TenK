@@ -60,9 +60,11 @@ def derive_ratios(snapshots: list[MetricSnapshot]) -> list[MetricSnapshot]:
     short_term_debt = by_key.get("short_term_debt")
     equity = by_key.get("stockholders_equity")
     if long_term_debt and equity and equity.value > 0:
-        total_debt = long_term_debt.value + (
-            short_term_debt.value if short_term_debt else 0.0
-        )
+        total_debt = long_term_debt.value
+        if short_term_debt and not _includes_current_portion(
+            long_term_debt, short_term_debt
+        ):
+            total_debt += short_term_debt.value
         derived.append(
             _snapshot(
                 "debt_to_equity",
@@ -73,6 +75,15 @@ def derive_ratios(snapshots: list[MetricSnapshot]) -> list[MetricSnapshot]:
         )
 
     total_liabilities = by_key.get("total_liabilities")
+    if total_liabilities is None and total_assets and equity:
+        total_liabilities = _snapshot(
+            "total_liabilities",
+            total_assets,
+            total_assets.value - equity.value,
+            "total_assets-stockholders_equity",
+            unit=total_assets.unit,
+        )
+        derived.append(total_liabilities)
     if total_liabilities and total_assets and total_assets.value:
         derived.append(
             _ratio_snapshot("liabilities_to_assets", total_liabilities, total_assets)
@@ -86,6 +97,20 @@ def derive_ratios(snapshots: list[MetricSnapshot]) -> list[MetricSnapshot]:
         )
 
     return derived
+
+
+_CURRENT_PORTION_TAGS = {"LongTermDebtCurrent", "DebtCurrent"}
+
+
+def _includes_current_portion(
+    long_term_debt: MetricSnapshot, short_term_debt: MetricSnapshot
+) -> bool:
+    """The plain `LongTermDebt` tag includes current maturities, so adding a
+    current-portion tag on top would count them twice."""
+    return (
+        long_term_debt.xbrl_tag == "LongTermDebt"
+        and short_term_debt.xbrl_tag in _CURRENT_PORTION_TAGS
+    )
 
 
 def _snapshot(

@@ -19,10 +19,12 @@ METRIC_TAGS: dict[str, list[tuple[str, str]]] = {
     ],
     "long_term_debt": [
         ("us-gaap", "LongTermDebtNoncurrent"),
+        ("us-gaap", "LongTermDebtAndCapitalLeaseObligations"),
         ("us-gaap", "LongTermDebt"),
     ],
     "short_term_debt": [
         ("us-gaap", "LongTermDebtCurrent"),
+        ("us-gaap", "LongTermDebtAndCapitalLeaseObligationsCurrent"),
         ("us-gaap", "ShortTermBorrowings"),
         ("us-gaap", "DebtCurrent"),
     ],
@@ -68,5 +70,7 @@ METRIC_TAGS: dict[str, list[tuple[str, str]]] = {
     "interest_expense": [
         ("us-gaap", "InterestExpense"),
         ("us-gaap", "InterestExpenseDebt"),
+        ("us-gaap", "InterestExpenseNonoperating"),
+        ("us-gaap", "InterestAndDebtExpense"),
     ],
 }
