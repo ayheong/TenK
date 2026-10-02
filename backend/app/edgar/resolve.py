@@ -68,6 +68,29 @@ def find_latest_10k(client: Client, cik: int) -> FilingSummary:
     return filings[0]
 
 
+# Holding-company reorganizations move the ticker to a new registrant while the
+# 10-K history stays under the old one. EDGAR exposes no link between the two,
+# so map new CIK -> predecessor CIK explicitly.
+SUCCESSOR_REGISTRANTS: dict[int, int] = {
+    2115436: 34088,  # ExxonMobil Holdings Corp -> Exxon Mobil Corp
+}
+
+
+def find_10ks_with_predecessor(
+    client: Client, cik: int
+) -> tuple[int, list[FilingSummary]]:
+    """Return the CIK that actually holds the 10-K history and its filings,
+    falling back to a known predecessor registrant when `cik` has none."""
+    filings = find_10k_filings(client, cik)
+    predecessor = SUCCESSOR_REGISTRANTS.get(cik)
+    if not filings and predecessor is not None:
+        cik = predecessor
+        filings = find_10k_filings(client, cik)
+    if not filings:
+        raise ValueError(f"No 10-K found for CIK {cik}")
+    return cik, filings
+
+
 def fetch_filing_html(
     client: Client, cik: int, accession: str, primary_document: str
 ) -> Path:
@@ -90,9 +113,7 @@ def _build_filing_record(
     summary: FilingSummary,
     prior_accession: str | None,
 ) -> FilingRecord:
-    cached = fetch_filing_html(
-        client, cik, summary.accession, summary.primary_document
-    )
+    cached = fetch_filing_html(client, cik, summary.accession, summary.primary_document)
     return FilingRecord(
         ticker=ticker.upper(),
         cik=cik,
@@ -108,10 +129,7 @@ def _build_filing_record(
 def resolve_filing(ticker: str) -> FilingRecord:
     """Ticker → latest 10-K metadata + cached HTML under data/cache/."""
     client = Client()
-    cik = lookup_cik(client, ticker)
-    filings = find_10k_filings(client, cik)
-    if not filings:
-        raise ValueError(f"No 10-K found for CIK {cik}")
+    cik, filings = find_10ks_with_predecessor(client, lookup_cik(client, ticker))
 
     prior_accession = filings[1].accession if len(filings) > 1 else None
     return _build_filing_record(client, ticker, cik, filings[0], prior_accession)
@@ -122,10 +140,7 @@ def resolve_filing_pair(ticker: str) -> tuple[FilingRecord, FilingRecord | None]
     record is None when only one 10-K exists (e.g. a recent IPO). Needed
     for year-over-year qualitative diffs (Item 1A risk-factor changes)."""
     client = Client()
-    cik = lookup_cik(client, ticker)
-    filings = find_10k_filings(client, cik)
-    if not filings:
-        raise ValueError(f"No 10-K found for CIK {cik}")
+    cik, filings = find_10ks_with_predecessor(client, lookup_cik(client, ticker))
 
     prior_accession = filings[1].accession if len(filings) > 1 else None
     current = _build_filing_record(client, ticker, cik, filings[0], prior_accession)

@@ -186,3 +186,70 @@ def test_resolve_filing_returns_populated_record(tmp_path, monkeypatch) -> None:
     assert str(record.fiscal_year_end) == "2025-09-27"
     assert record.prior_accession == "0000320193-24-000081"
     assert record.cached_path.endswith("aapl-20250927.htm")
+
+
+@respx.mock
+def test_resolve_filing_falls_back_to_predecessor_registrant(
+    tmp_path, monkeypatch
+) -> None:
+    new_cik = 999
+    monkeypatch.setattr(resolve, "CACHE_ROOT", tmp_path)
+    monkeypatch.setitem(resolve.SUCCESSOR_REGISTRANTS, new_cik, CIK)
+    respx.get(COMPANY_TICKERS_URL).mock(
+        return_value=httpx.Response(
+            200, json={"0": {"cik_str": new_cik, "ticker": "AAPL", "title": "New"}}
+        )
+    )
+    respx.get(submissions_url(new_cik)).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "filings": {
+                    "recent": {
+                        "form": ["10-Q"],
+                        "accessionNumber": ["0000000999-26-000001"],
+                        "filingDate": ["2026-08-03"],
+                        "primaryDocument": ["q.htm"],
+                        "reportDate": ["2026-06-30"],
+                    }
+                }
+            },
+        )
+    )
+    respx.get(submissions_url(CIK)).mock(
+        return_value=httpx.Response(200, json=SUBMISSIONS_FIXTURE)
+    )
+    respx.get(
+        filing_document_url(CIK, "0000320193-25-000079", "aapl-20250927.htm")
+    ).mock(return_value=httpx.Response(200, text="<html>10-K</html>"))
+
+    record = resolve_filing("AAPL")
+
+    assert record.cik == CIK
+    assert record.accession == "0000320193-25-000079"
+
+
+@respx.mock
+def test_resolve_filing_raises_without_10k_or_known_predecessor() -> None:
+    respx.get(COMPANY_TICKERS_URL).mock(
+        return_value=httpx.Response(200, json=TICKERS_FIXTURE)
+    )
+    respx.get(submissions_url(CIK)).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "filings": {
+                    "recent": {
+                        "form": ["8-K"],
+                        "accessionNumber": ["0000320193-25-000002"],
+                        "filingDate": ["2025-11-15"],
+                        "primaryDocument": ["b.htm"],
+                        "reportDate": [""],
+                    }
+                }
+            },
+        )
+    )
+
+    with pytest.raises(ValueError, match="No 10-K found"):
+        resolve_filing("AAPL")
