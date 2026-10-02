@@ -62,7 +62,7 @@ def test_extract_items_ignores_cross_reference_mid_paragraph() -> None:
 
 def test_extract_items_handles_adjacent_real_headings() -> None:
     # Item 6 has almost no content ("[Reserved]") and sits directly before
-    # Item 7 with only a small real gap between them — must not be
+    # Item 7 with only a small real gap between them - must not be
     # re-absorbed into the "still in the table of contents" case.
     results = extract_items(FILING_HTML, ["7"])
 
@@ -134,9 +134,14 @@ def test_extract_items_follows_item_8_redirect_to_item_15() -> None:
 
     result = results["8"]
     assert result.found
-    # Not the one-line cross-reference notice — the real statements.
-    assert result.text.startswith("Report of Independent Registered Public Accounting Firm")
-    assert "We have audited the accompanying consolidated balance sheets" in result.text
+    # Not the one-line cross-reference notice - the real statements.
+    assert result.text.startswith(
+        "Report of Independent Registered Public Accounting Firm"
+    )
+    assert (
+        "We have audited the accompanying consolidated balance sheets"
+        in result.text
+    )
     assert "set forth in our Consolidated" not in result.text
     assert result.reason is not None
     assert "cross-reference" in result.reason
@@ -191,6 +196,11 @@ def test_extract_items_skips_index_entry_with_page_number_on_next_line() -> None
     result = extract_items(REDIRECT_NEXT_LINE_PAGE_NUMBER_HTML, ["8"])["8"]
 
     assert result.found
-    assert result.text.startswith("Report of Independent Registered Public Accounting Firm")
-    assert "We have audited the accompanying consolidated balance sheets" in result.text
+    assert result.text.startswith(
+        "Report of Independent Registered Public Accounting Firm"
+    )
+    assert (
+        "We have audited the accompanying consolidated balance sheets"
+        in result.text
+    )
     assert "appear on pages 162" not in result.text

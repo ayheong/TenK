@@ -54,7 +54,7 @@ def _prior_period_value(
 ) -> float | None:
     """Find the comparative prior-year figure for a metric, reported
     alongside the current year in the same 10-K (income statements show
-    2-3 years of history in one filing) — no extra fetch required."""
+    2-3 years of history in one filing) - no extra fetch required."""
     for taxonomy, tag in candidates:
         tag_data = facts.get(taxonomy, {}).get(tag)
         if not tag_data:
@@ -80,7 +80,7 @@ def extract_metrics_from_facts(
     """Extract canonical MetricSnapshots for one filing from an
     already-fetched Company Facts payload.
 
-    Metrics with no matching tag in any fallback are silently skipped —
+    Metrics with no matching tag in any fallback are silently skipped -
     not every filer reports every canonical metric (e.g. no inventory
     for a services company).
     """

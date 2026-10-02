@@ -1,11 +1,11 @@
 # Interactive tour of the pipeline, one ticker, one stage at a time.
 #
 # Run from backend/: python scripts/walkthrough.py AAPL
-# Add --llm to also run Layer 2 (real Claude API calls — needs
+# Add --llm to also run the LLM extraction (real Claude API calls - needs
 # ANTHROPIC_API_KEY and SEC_USER_AGENT). Without it, the walkthrough stops
-# after Layer 2's parser stage (no API key needed, no cost).
+# after the parser stage (no API key needed, no cost).
 #
-# Each stage prints what that layer produced, then waits for Enter so you
+# Each stage prints what that stage produced, then waits for Enter so you
 # can read it before moving on. Pass --no-pause to run straight through.
 
 import sys
@@ -33,7 +33,7 @@ def stage(title: str) -> None:
 
 
 # ---------------------------------------------------------------------
-stage("LAYER 0 — filing resolution (app/edgar/resolve.py)")
+stage("LAYER 0 - filing resolution (app/edgar/resolve.py)")
 
 current, prior = resolve_filing_pair(ticker)
 print(f"ticker:          {current.ticker}")
@@ -43,19 +43,22 @@ print(f"filing_date:     {current.filing_date}")
 print(f"fiscal_year_end: {current.fiscal_year_end}")
 print(f"cached_path:     {current.cached_path}")
 print(f"prior_accession: {current.prior_accession}")
-print(f"\nprior filing:    {prior.accession if prior else '(none — first 10-K)'}")
+print(f"\nprior filing:    {prior.accession if prior else '(none - first 10-K)'}")
 
 # ---------------------------------------------------------------------
-stage("LAYER 1 — XBRL metrics (app/xbrl/extract.py)")
+stage("LAYER 1 - XBRL metrics (app/xbrl/extract.py)")
 
 client = Client()
 snapshots = extract_all(client, current)
 print(f"{len(snapshots)} MetricSnapshots extracted:\n")
 for s in snapshots:
-    print(f"  {s.metric_key:<24} {s.value:>18,.2f} {s.unit:<8} (tag: {s.xbrl_tag}, source: {s.source})")
+    print(
+        f"  {s.metric_key:<24} {s.value:>18,.2f} {s.unit:<8} "
+        f"(tag: {s.xbrl_tag}, source: {s.source})"
+    )
 
 # ---------------------------------------------------------------------
-stage("LAYER 2a — Item-section parsing (app/parser/items.py)")
+stage("LAYER 2a - Item-section parsing (app/parser/items.py)")
 
 filing_html = Path(current.cached_path).read_text(encoding="utf-8")
 items = extract_items(filing_html, ["1", "1A", "7", "8", "9A"])
@@ -69,12 +72,12 @@ for key, section in items.items():
         print(f"  Item {key:<3} NOT FOUND   {section.reason}")
 
 if not RUN_LLM:
-    print("\n(stopping here — pass --llm to also run Layer 2's Claude extraction)")
+    print("\n(stopping here - pass --llm to also run the Claude extraction)")
     sys.exit(0)
 
 # ---------------------------------------------------------------------
-stage("LAYER 2b — qualitative LLM extraction (app/extraction/pipeline.py)")
-print("Making real Claude API calls — this costs money and takes a bit.\n")
+stage("LAYER 2b - qualitative LLM extraction (app/extraction/pipeline.py)")
+print("Making real Claude API calls - this costs money and takes a bit.\n")
 
 from app.extraction.pipeline import extract_qualitative
 

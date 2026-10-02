@@ -6,7 +6,7 @@
 
 _SHARED = (
     "You extract structured signals from one section of a SEC 10-K filing. "
-    "Use only the text provided in the user message — do not rely on outside "
+    "Use only the text provided in the user message - do not rely on outside "
     "knowledge of the company. If the text does not support a field, pick the "
     "most conservative or 'not found' option rather than guessing. Write "
     "summaries in plain language for a reader with no finance background."

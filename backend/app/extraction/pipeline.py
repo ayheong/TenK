@@ -1,10 +1,10 @@
-# Layer 2 orchestration: cached 10-K HTML -> QualitativeExtraction.
+# Qualitative extraction orchestration: cached 10-K HTML -> QualitativeExtraction.
 #
 # For each target section: locate it with the Item parser, narrow big
 # sections to just the relevant text with keyword anchoring, then run the
 # matching LLM extractor. A section the parser can't find is recorded
 # found=False with no LLM call. A section found but whose LLM call
-# fails/refuses is recorded found=True with `error` set — one bad section
+# fails/refuses is recorded found=True with `error` set - one bad section
 # never sinks the rest of the filing.
 
 from pathlib import Path
@@ -64,7 +64,7 @@ def extract_qualitative(
     *,
     llm: LLMClient | None = None,
 ) -> models.QualitativeExtraction:
-    """Run every Layer 2 extractor against one filing. `prior_filing`, if
+    """Run every qualitative extractor against one filing. `prior_filing`, if
     given, supplies the prior-year Item 1A for the risk-factor diff."""
     llm = llm or LLMClient()
 
@@ -220,7 +220,7 @@ def _run_related_party(
 
     anchored = extract_keyword_anchored_text(item_8.text, RELATED_PARTY_KEYWORDS)
     if not anchored.found:
-        # No related-party language anywhere in Item 8 — an honest
+        # No related-party language anywhere in Item 8 - an honest
         # structured negative, no LLM call needed.
         return _section(
             "related_party",

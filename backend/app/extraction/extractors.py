@@ -1,7 +1,7 @@
 # One function per extraction target. Each builds the user-message text
 # (labelled so the model knows which section is which) and calls the LLM
 # under the matching schema + system prompt. No filing I/O or parser
-# logic here — that's the pipeline's job; these take already-sliced text.
+# logic here - that's the pipeline's job; these take already-sliced text.
 
 from app.extraction import models, prompts
 from app.extraction.llm import LLMClient
@@ -12,14 +12,14 @@ def extract_risk_factor_changes(
 ) -> models.RiskFactorChanges:
     if prior_item_1a:
         text = (
-            "=== CURRENT YEAR — ITEM 1A ===\n"
+            "=== CURRENT YEAR - ITEM 1A ===\n"
             f"{current_item_1a}\n\n"
-            "=== PRIOR YEAR — ITEM 1A ===\n"
+            "=== PRIOR YEAR - ITEM 1A ===\n"
             f"{prior_item_1a}"
         )
     else:
         text = (
-            "=== CURRENT YEAR — ITEM 1A (no prior year available) ===\n"
+            "=== CURRENT YEAR - ITEM 1A (no prior year available) ===\n"
             f"{current_item_1a}"
         )
     return llm.extract(
@@ -32,7 +32,7 @@ def extract_risk_factor_changes(
 def extract_management_tone(llm: LLMClient, item_7: str) -> models.ManagementTone:
     return llm.extract(
         system=prompts.MANAGEMENT_TONE,
-        text=f"=== ITEM 7 — MD&A ===\n{item_7}",
+        text=f"=== ITEM 7 - MD&A ===\n{item_7}",
         schema=models.ManagementTone,
     )
 

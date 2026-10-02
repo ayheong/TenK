@@ -5,6 +5,7 @@
 
 from pathlib import Path
 
+import httpx
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
@@ -14,7 +15,7 @@ from app.edgar.resolve import resolve_filing
 TICKERS = [
     "GOOGL",  # tech / already-large Item 8 sanity check
     "AMZN",   # tech/retail
-    "JPM",    # bank holding co — different statement set (no inventory etc.)
+    "JPM",    # bank holding co - different statement set (no inventory etc.)
     "JNJ",    # pharma/healthcare
     "XOM",    # energy
     "WMT",    # retail
@@ -27,5 +28,5 @@ if __name__ == "__main__":
         try:
             record = resolve_filing(ticker)
             print(f"{ticker}: cached at {record.cached_path}")
-        except Exception as exc:
-            print(f"{ticker}: FAILED — {exc}")
+        except (ValueError, httpx.HTTPError) as exc:
+            print(f"{ticker}: FAILED - {exc}")

@@ -23,7 +23,7 @@ def extract_keyword_anchored_text(
     """Pull just the text around keyword matches out of a large section,
     instead of sending the whole section to an LLM.
 
-    For content that's a small part of a much larger section — e.g. a
+    For content that's a small part of a much larger section - e.g. a
     related-party-transactions footnote inside Item 8's full financial
     statements. Returns found=False (not an empty excerpt) when no
     keyword appears anywhere: some filers describe the content as

@@ -1,5 +1,5 @@
 # Manual end-to-end test for app.extraction against a real filing.
-# Makes real Claude API calls — needs ANTHROPIC_API_KEY (or an
+# Makes real Claude API calls - needs ANTHROPIC_API_KEY (or an
 # `ant auth login` profile) and SEC_USER_AGENT.
 # Run from backend/: python scripts/test_extraction.py AAPL
 

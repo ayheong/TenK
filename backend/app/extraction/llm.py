@@ -4,12 +4,12 @@
 #
 # Model selection: defaults to claude-opus-5. Override per-deployment
 # with the TENK_EXTRACTION_MODEL env var (e.g. claude-sonnet-5 to cut
-# cost) — no code change needed.
+# cost) - no code change needed.
 #
 # Error policy: infrastructure failures (auth, network, rate limits after
 # the SDK's own retries) propagate as the SDK's typed exceptions so the
-# caller fails loudly. Only content-level problems — the model refused,
-# or returned nothing parseable — are raised as ExtractionError, which
+# caller fails loudly. Only content-level problems - the model refused,
+# or returned nothing parseable - are raised as ExtractionError, which
 # the pipeline catches per-section so one bad section doesn't sink the
 # whole filing.
 

@@ -1,9 +1,9 @@
-# Pydantic schemas for Layer 2 qualitative extraction.
+# Pydantic schemas for qualitative extraction.
 #
 # Each *target* model (RiskFactorChanges, ManagementTone, ...) is what an
 # LLM call is constrained to produce for one filing section. Field names
-# and Literal sets are deliberately close to what Layer 2.5 risk scoring
-# will consume — booleans and enums it can turn into subscore signals
+# and Literal sets are deliberately close to what risk scoring
+# will consume - booleans and enums it can turn into subscore signals
 # without re-reading prose. `SectionExtraction` wraps one target result
 # with provenance; `QualitativeExtraction` bundles all of them for a
 # filing (mirrors CONTEXT.md's SectionExtraction data-model entry).
@@ -26,8 +26,8 @@ RiskCategory = Literal[
 ]
 
 # How urgent the disclosure *language* is, independent of the underlying
-# fact — "could adversely affect" (routine) vs "raises substantial doubt"
-# (severe). Layer 2.5's Disclosure-Change subscore keys off escalation
+# fact - "could adversely affect" (routine) vs "raises substantial doubt"
+# (severe). The Disclosure-Change subscore keys off escalation
 # here, not off the raw count of risk factors.
 SeverityLanguage = Literal["routine", "elevated", "severe"]
 
