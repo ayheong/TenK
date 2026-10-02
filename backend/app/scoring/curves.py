@@ -1,6 +1,6 @@
 """Piecewise-linear mapping from a raw metric to a 0-100 risk score."""
 
-from app.scoring.models import Signal
+from app.scoring.models import Signal, SignalKind
 
 
 def interpolate(value: float, knots: list[tuple[float, float]]) -> float:
@@ -15,7 +15,8 @@ def interpolate(value: float, knots: list[tuple[float, float]]) -> float:
 
 
 def blend(
-    scored: list[tuple[str, float, float, float, str]],
+    scored: list[tuple[str, float | str, float, float, str]],
+    kind: SignalKind = "quantitative",
 ) -> tuple[float, list[Signal]]:
     """Weight-average per-signal risk scores, renormalizing over the signals
     present. Each input is (key, raw_value, risk, weight, source); each
@@ -24,7 +25,7 @@ def blend(
     signals = [
         Signal(
             key=key,
-            kind="quantitative",
+            kind=kind,
             raw_value=raw,
             direction="raises" if risk > 0 else "lowers",
             contribution=risk * weight / total_weight,
