@@ -275,6 +275,7 @@ def test_pipeline_skips_llm_when_no_related_party_language(tmp_path) -> None:
     section = result.related_party
     assert section.found is True
     assert section.parsed.has_related_party_transactions is False
+    assert section.method == "rules"
     assert all(c[0] is not models.RelatedPartyTransactions for c in llm.calls)
 
 
@@ -287,6 +288,7 @@ def test_pipeline_skips_llm_when_no_concentration_language(tmp_path) -> None:
     section = result.revenue_concentration
     assert section.found is True
     assert section.parsed.customer_concentration is False
+    assert section.method == "rules"
     assert all(c[0] is not models.RevenueConcentration for c in llm.calls)
 
 

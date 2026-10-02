@@ -249,6 +249,7 @@ def _run_related_party(llm: LLMClient, item_8: ItemSection) -> models.SectionExt
                 transactions=[],
                 summary="No related-party transaction disclosure found in Item 8.",
             ),
+            method="rules",
             reason="no related-party keyword match in Item 8",
         )
 
@@ -285,6 +286,7 @@ def _run_revenue_concentration(
                     "Item 1 or Item 7."
                 ),
             ),
+            method="rules",
             reason="no concentration keyword match in Item 1 or Item 7",
         )
 
