@@ -9,6 +9,8 @@ _DEBT_TO_EQUITY = [(0.5, 0.0), (1.5, 25.0), (3.0, 60.0), (5.0, 100.0)]
 _INTEREST_COVERAGE = [(0.0, 100.0), (1.0, 80.0), (1.5, 60.0), (3.0, 25.0), (8.0, 0.0)]
 _LIABILITIES_TO_ASSETS = [(0.4, 0.0), (0.6, 25.0), (0.8, 60.0), (1.0, 100.0)]
 
+_NEGATIVE_EQUITY_RISK = 100.0
+
 # metric_key -> (knots, weight within the subscore). Weights renormalize over
 # whichever signals are present.
 _SIGNALS: dict[str, tuple[list[tuple[float, float]], float]] = {
@@ -34,6 +36,17 @@ def compute_leverage_subscore(metrics: list[MetricSnapshot]) -> Subscore:
         for key, (knots, w) in _SIGNALS.items()
         if key in by_key
     ]
+    equity = by_key.get("stockholders_equity")
+    if "debt_to_equity" not in by_key and equity is not None and equity.value <= 0:
+        scored.append(
+            (
+                "negative_equity",
+                equity.value,
+                _NEGATIVE_EQUITY_RISK,
+                _SIGNALS["debt_to_equity"][1],
+                equity.xbrl_tag,
+            )
+        )
     if not scored:
         return Subscore(
             key="leverage",

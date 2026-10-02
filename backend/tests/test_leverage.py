@@ -46,3 +46,21 @@ def test_unavailable_without_any_signal() -> None:
     assert not sub.available
     assert sub.reason_code == "missing_input"
     assert sub.signals == []
+
+
+def test_negative_equity_scores_as_maximum_debt_risk() -> None:
+    sub = compute_leverage_subscore(
+        [_metric("stockholders_equity", -500.0), _metric("interest_coverage", 8.0)]
+    )
+
+    assert sub.available
+    assert [s.key for s in sub.signals] == ["interest_coverage", "negative_equity"]
+    assert sub.score == pytest.approx(100.0 * 0.35 / 0.75)
+
+
+def test_positive_equity_without_debt_adds_no_negative_equity_signal() -> None:
+    sub = compute_leverage_subscore(
+        [_metric("stockholders_equity", 500.0), _metric("interest_coverage", 8.0)]
+    )
+
+    assert [s.key for s in sub.signals] == ["interest_coverage"]
