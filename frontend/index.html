@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TenK Demo</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --surface: #ffffff; --surface-2: #f0f2f5; --text: #1b1f24;
+    --muted: #5b6573; --border: #d9dee5; --accent: #2457c5; --accent-text: #ffffff;
+    --low: #1f8a4c; --elevated: #b7791f; --high: #c05621; --severe: #c0262d;
+    --warn-bg: #fff7e0; --warn-border: #e5c76b; --err-bg: #fdecec; --err-border: #e3a3a6;
+    --badge-rules: #1f6f54; --badge-llm: #5b3fa8; --badge-off: #6b7280; --badge-miss: #8a5a00;
+    --shadow: 0 1px 2px rgba(16, 24, 40, .06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1216; --surface: #171b21; --surface-2: #1f242c; --text: #e6e9ee;
+      --muted: #9aa5b4; --border: #2b323c; --accent: #6c9bff; --accent-text: #0b1220;
+      --low: #4cc27f; --elevated: #e0a93b; --high: #e8873f; --severe: #ef6a70;
+      --warn-bg: #2a2410; --warn-border: #6b5a1f; --err-bg: #2c1618; --err-border: #6d3438;
+      --badge-rules: #5fd3a3; --badge-llm: #b69cff; --badge-off: #9aa5b4; --badge-miss: #e0b45a;
+      --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 24px 16px 64px; }
+  header h1 { margin: 0; font-size: 26px; letter-spacing: -.01em; }
+  header p { margin: 4px 0 0; color: var(--muted); }
+  .notice {
+    margin: 16px 0; padding: 10px 14px; border: 1px solid var(--warn-border);
+    background: var(--warn-bg); border-radius: 8px; font-size: 13.5px;
+  }
+  form.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 16px 0 8px; }
+  input[type=text] {
+    font: inherit; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--surface); color: var(--text); width: 130px; text-transform: uppercase;
+  }
+  button {
+    font: inherit; padding: 9px 16px; border-radius: 8px; border: 1px solid var(--accent);
+    background: var(--accent); color: var(--accent-text); cursor: pointer; font-weight: 600;
+  }
+  button:disabled { opacity: .55; cursor: wait; }
+  button.chip {
+    background: var(--surface); color: var(--text); border-color: var(--border);
+    padding: 3px 10px; font-weight: 500; font-size: 13px; border-radius: 999px;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  label.llm { display: flex; gap: 8px; align-items: center; font-size: 13.5px; color: var(--muted); }
+  label.llm.disabled { opacity: .7; }
+  #status { min-height: 24px; color: var(--muted); font-size: 14px; }
+  #error {
+    display: none; margin: 12px 0; padding: 12px 14px; border: 1px solid var(--err-border);
+    background: var(--err-bg); border-radius: 8px;
+  }
+  section { margin-top: 28px; }
+  section > h2 { font-size: 17px; margin: 0 0 4px; }
+  section > p.hint { margin: 0 0 12px; color: var(--muted); font-size: 13.5px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; box-shadow: var(--shadow);
+  }
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); }
+  .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .card h3 { margin: 0; font-size: 15px; }
+  .sub { color: var(--muted); font-size: 12.5px; }
+  .score { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .bar { height: 8px; background: var(--surface-2); border-radius: 999px; overflow: hidden; margin: 8px 0 4px; }
+  .bar > span { display: block; height: 100%; border-radius: 999px; }
+  .low { color: var(--low); } .elevated { color: var(--elevated); }
+  .high { color: var(--high); } .severe { color: var(--severe); }
+  .bar .low { background: var(--low); } .bar .elevated { background: var(--elevated); }
+  .bar .high { background: var(--high); } .bar .severe { background: var(--severe); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+  th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .unavailable { color: var(--muted); font-size: 13.5px; margin-top: 8px; }
+  .badge {
+    display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600;
+    border: 1px solid currentColor; white-space: nowrap;
+  }
+  .badge.rules { color: var(--badge-rules); } .badge.llm { color: var(--badge-llm); }
+  .badge.off { color: var(--badge-off); } .badge.miss { color: var(--badge-miss); }
+  .badge.err { color: var(--severe); }
+  dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: 3px 14px; margin: 10px 0 0; font-size: 13.5px; }
+  dl.facts dt { color: var(--muted); } dl.facts dd { margin: 0; }
+  blockquote {
+    margin: 10px 0 0; padding: 6px 10px; border-left: 3px solid var(--border);
+    color: var(--muted); font-size: 13px; word-break: break-word;
+  }
+  details { margin-top: 10px; } summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  details ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; }
+  pre {
+    background: var(--surface-2); padding: 12px; border-radius: 8px; overflow: auto;
+    max-height: 420px; font-size: 12px;
+  }
+  a { color: var(--accent); }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+  td.mono { overflow-wrap: anywhere; font-size: 11.5px; }
+  @media (max-width: 520px) { .grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>TenK demo</h1>
+    <p>Run the 10-K pipeline for a ticker and review every stage: scores, extractions and the raw data.</p>
+  </header>
+
+  <div class="notice">
+    Demo build for reviewing changes. Not financial advice. There is no overall score or band yet,
+    because aggregation is not built.
+  </div>
+
+  <form class="controls" id="form">
+    <input type="text" id="ticker" placeholder="Ticker" maxlength="10" autocomplete="off" aria-label="Ticker symbol" autofocus>
+    <button type="submit" id="go">Analyze</button>
+    <label class="llm" id="llm-label">
+      <input type="checkbox" id="llm">
+      <span id="llm-text">Also use Claude for risk factors, related parties and concentration (costs money)</span>
+    </label>
+  </form>
+  <div class="chips" id="chips"></div>
+  <div id="status" role="status" aria-live="polite"></div>
+  <div id="error" role="alert"></div>
+
+  <div id="results" hidden>
+    <section id="filing"></section>
+    <section>
+      <h2>Subscores</h2>
+      <p class="hint">Higher means more fragile. Weights come from the scoring config. Signals show the raw value, how many points it contributed and where it came from.</p>
+      <div class="grid" id="subscores"></div>
+    </section>
+    <section>
+      <h2>Extraction</h2>
+      <p class="hint">Each qualitative section, how it was produced, and the evidence behind it.</p>
+      <div class="grid" id="extraction"></div>
+    </section>
+    <section>
+      <h2>XBRL metrics</h2>
+      <div class="card"><table id="metrics"></table></div>
+    </section>
+    <section>
+      <h2>Raw response</h2>
+      <details><summary>Show JSON</summary><pre id="raw" class="mono"></pre></details>
+    </section>
+  </div>
+</div>
+
+<script>
+const SAMPLE_TICKERS = ["AAPL", "MSFT", "KO", "WMT", "BA", "AMC", "BYND", "JPM", "RIVN"];
+const SUBSCORE_LABELS = {
+  liquidity: "Liquidity", leverage: "Leverage", litigation_regulatory: "Litigation and regulatory",
+  governance: "Governance", disclosure_change: "Disclosure change",
+};
+const SECTION_LABELS = {
+  risk_factor_changes: "Risk factor changes (Item 1A)", management_tone: "Management tone (Item 7)",
+  going_concern: "Audit opinion, going concern, controls (Items 8 and 9A)",
+  related_party: "Related-party transactions (Item 8)", revenue_concentration: "Revenue concentration (Items 1 and 7)",
+};
+const BAND_THRESHOLDS = { elevated: 35, high: 60, severe: 80 };
+
+const $ = (id) => document.getElementById(id);
+
+function el(tag, props, ...children) {
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(props || {})) {
+    if (key === "class") node.className = value;
+    else if (value !== null && value !== undefined) node.setAttribute(key, value);
+  }
+  for (const child of children.flat()) {
+    if (child === null || child === undefined || child === false) continue;
+    node.append(child instanceof Node ? child : document.createTextNode(String(child)));
+  }
+  return node;
+}
+
+function put(parent, ...children) {
+  for (const child of children.flat()) {
+    if (child === null || child === undefined || child === false) continue;
+    parent.append(child);
+  }
+}
+
+function band(score) {
+  if (score >= BAND_THRESHOLDS.severe) return "severe";
+  if (score >= BAND_THRESHOLDS.high) return "high";
+  if (score >= BAND_THRESHOLDS.elevated) return "elevated";
+  return "low";
+}
+
+function formatValue(value, unit) {
+  if (typeof value === "string") return value;
+  if (unit === "USD") {
+    const abs = Math.abs(value);
+    const sign = value < 0 ? "-" : "";
+    if (abs >= 1e9) return `${sign}$${(abs / 1e9).toFixed(2)}B`;
+    if (abs >= 1e6) return `${sign}$${(abs / 1e6).toFixed(1)}M`;
+    return `${sign}$${abs.toLocaleString()}`;
+  }
+  if (unit === "shares") return value.toLocaleString();
+  if (!unit && Math.abs(value) >= 1e5) {
+    const abs = Math.abs(value);
+    const sign = value < 0 ? "-" : "";
+    return abs >= 1e9 ? `${sign}${(abs / 1e9).toFixed(2)}B` : `${sign}${(abs / 1e6).toFixed(2)}M`;
+  }
+  return Number(value).toLocaleString(undefined, { maximumFractionDigits: 3 });
+}
+
+function badge(text, kind) { return el("span", { class: `badge ${kind}` }, text); }
+
+function methodBadge(section, llmEnabled) {
+  if (!section.found) return badge("Not found", "miss");
+  if (section.error) {
+    return section.error.startsWith("LLM disabled")
+      ? badge("Skipped (LLM off)", "off") : badge("Error", "err");
+  }
+  return section.method === "rules" ? badge("Rules", "rules") : badge("Claude", "llm");
+}
+
+function facts(pairs) {
+  const dl = el("dl", { class: "facts" });
+  for (const [label, value] of pairs) {
+    if (value === null || value === undefined || value === "") continue;
+    dl.append(el("dt", {}, label), el("dd", {}, value));
+  }
+  return dl;
+}
+
+function quoteList(title, items) {
+  if (!items || !items.length) return null;
+  return el("details", {}, el("summary", {}, `${title} (${items.length})`),
+    el("ul", {}, items.map((item) => el("li", {}, item))));
+}
+
+function renderFiling(analysis) {
+  const f = analysis.filing;
+  const node = $("filing");
+  node.replaceChildren(el("div", { class: "card" },
+    el("div", { class: "row" },
+      el("h3", {}, `${f.ticker} annual report`),
+      analysis.llm_enabled ? badge("Claude enabled", "llm") : badge("LLM off, no API spend", "off")),
+    facts([
+      ["Fiscal year end", f.fiscal_year_end],
+      ["Filed", f.filing_date],
+      ["Accession", el("span", { class: "mono" }, f.accession)],
+      ["Prior-year accession", f.prior_accession ? el("span", { class: "mono" }, f.prior_accession) : "none"],
+      ["Document", el("a", { href: f.html_url, target: "_blank", rel: "noopener" }, "Open on SEC.gov")],
+    ])));
+}
+
+function renderSubscore(sub) {
+  const card = el("div", { class: "card" });
+  put(card, el("div", { class: "row" },
+    el("div", {}, el("h3", {}, SUBSCORE_LABELS[sub.key] || sub.key),
+      el("div", { class: "sub" }, `${sub.family.replaceAll("_", " ")} | weight ${Math.round(sub.weight * 100)}%`)),
+    sub.available ? el("div", { class: `score ${band(sub.score)}` }, sub.score.toFixed(1)) : badge("Unavailable", "off")));
+  if (!sub.available) {
+    put(card, el("div", { class: "unavailable" }, sub.reason || "Missing input"));
+    return card;
+  }
+  put(card, el("div", { class: "bar", role: "img", "aria-label": `Score ${sub.score.toFixed(1)} of 100, ${band(sub.score)} range` },
+    el("span", { class: band(sub.score), style: `width:${Math.min(100, sub.score)}%` })));
+  put(card, el("div", { class: "sub" }, `${band(sub.score)} range`));
+  const table = el("table", {},
+    el("thead", {}, el("tr", {}, el("th", {}, "Signal"), el("th", { class: "num" }, "Value"),
+      el("th", { class: "num" }, "Points"), el("th", {}, "Source"))),
+    el("tbody", {}, sub.signals.map((s) => el("tr", {},
+      el("td", {}, `${s.key.replaceAll("_", " ")}`, s.kind === "qualitative" ? el("span", { class: "sub" }, " (text)") : null),
+      el("td", { class: "num" }, formatValue(s.raw_value, "")),
+      el("td", { class: "num" }, s.contribution.toFixed(1)),
+      el("td", { class: "mono" }, s.source)))));
+  put(card, table);
+  return card;
+}
+
+function renderExtraction(key, section, analysis) {
+  const card = el("div", { class: "card" });
+  put(card, el("div", { class: "row" }, el("h3", {}, SECTION_LABELS[key]), methodBadge(section, analysis.llm_enabled)));
+  const parsed = section.parsed;
+  if (!section.found) {
+    put(card, el("div", { class: "unavailable" }, section.reason || "Section not found in the filing."));
+    return card;
+  }
+  if (section.error) {
+    put(card, el("div", { class: "unavailable" }, section.error));
+    return card;
+  }
+  if (section.reason) put(card, el("div", { class: "sub" }, section.reason));
+  if (key === "going_concern") {
+    put(card, facts([
+      ["Audit opinion", parsed.auditor_opinion_type],
+      ["Going-concern doubt", parsed.going_concern_doubt ? "Yes" : "No"],
+      ["Material weakness", parsed.material_weakness ? "Yes" : "No"],
+    ]), parsed.evidence ? el("blockquote", {}, parsed.evidence) : null);
+  } else if (key === "management_tone") {
+    put(card, facts([["Overall tone", parsed.overall_tone], ["Hedging", parsed.hedging_intensity]]),
+      el("div", { class: "sub" }, parsed.summary),
+      quoteList("Forward guidance", parsed.forward_guidance), quoteList("Notable concerns", parsed.notable_concerns));
+  } else if (key === "risk_factor_changes") {
+    const item = (r) => `${r.title} [${r.category}, ${r.severity_language}]`;
+    put(card, facts([["Net change", parsed.net_change], ["Prior year compared", parsed.prior_year_available ? "Yes" : "No"]]),
+      el("div", { class: "sub" }, parsed.summary),
+      quoteList("Added", parsed.added.map(item)), quoteList("Escalated", parsed.escalated.map(item)),
+      quoteList("Removed", parsed.removed));
+  } else if (key === "related_party") {
+    put(card, facts([["Related-party transactions", parsed.has_related_party_transactions ? "Yes" : "No"]]),
+      el("div", { class: "sub" }, parsed.summary),
+      quoteList("Transactions", parsed.transactions.map((t) => `${t.counterparty}: ${t.nature} [${t.concern_level}]${t.amount_text ? ", " + t.amount_text : ""}`)));
+  } else if (key === "revenue_concentration") {
+    put(card, facts([
+      ["Customer concentration", parsed.customer_concentration ? "Yes" : "No"],
+      ["Largest customer", parsed.largest_customer_pct_text],
+      ["Named customers", (parsed.named_customers || []).join(", ")],
+      ["Geographic", parsed.geographic_concentration],
+    ]), el("div", { class: "sub" }, parsed.summary));
+  }
+  if (section.source_chars) put(card, el("div", { class: "sub" }, `${section.source_chars.toLocaleString()} characters sent to the model`));
+  return card;
+}
+
+function renderMetrics(metrics) {
+  const table = $("metrics");
+  table.replaceChildren(
+    el("thead", {}, el("tr", {}, el("th", {}, "Metric"), el("th", { class: "num" }, "Value"),
+      el("th", {}, "Unit"), el("th", {}, "Source"), el("th", {}, "XBRL tag"))),
+    el("tbody", {}, metrics.map((m) => el("tr", {},
+      el("td", {}, m.key.replaceAll("_", " ")), el("td", { class: "num" }, formatValue(m.value, m.unit)),
+      el("td", {}, m.unit), el("td", {}, m.source), el("td", { class: "mono" }, m.xbrl_tag)))));
+}
+
+function render(analysis) {
+  renderFiling(analysis);
+  $("subscores").replaceChildren(...analysis.subscores.map(renderSubscore));
+  $("extraction").replaceChildren(...Object.keys(SECTION_LABELS)
+    .map((key) => renderExtraction(key, analysis.extraction[key], analysis)));
+  renderMetrics(analysis.metrics);
+  $("raw").textContent = JSON.stringify(analysis, null, 2);
+  $("results").hidden = false;
+}
+
+function showError(message) {
+  const box = $("error");
+  box.textContent = message;
+  box.style.display = "block";
+}
+
+let running = false;
+async function analyze(ticker, useLlm) {
+  if (running) return;
+  running = true;
+  $("error").style.display = "none";
+  $("results").hidden = true;
+  $("go").disabled = true;
+  const started = performance.now();
+  const tick = setInterval(() => {
+    $("status").textContent = `Running pipeline for ${ticker}... ${((performance.now() - started) / 1000).toFixed(0)}s (first run downloads the filing)`;
+  }, 500);
+  $("status").textContent = `Running pipeline for ${ticker}...`;
+  try {
+    const response = await fetch(`/api/analyze/${encodeURIComponent(ticker)}?llm=${useLlm}`);
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.detail || `Request failed (${response.status})`);
+    render(body);
+    $("status").textContent = `Done in ${((performance.now() - started) / 1000).toFixed(1)}s`;
+    history.replaceState(null, "", `#${ticker}`);
+  } catch (error) {
+    $("status").textContent = "";
+    showError(error.message);
+  } finally {
+    clearInterval(tick);
+    $("go").disabled = false;
+    running = false;
+  }
+}
+
+function submit(event) {
+  event.preventDefault();
+  const ticker = $("ticker").value.trim().toUpperCase();
+  if (!ticker) return;
+  const useLlm = $("llm").checked;
+  if (useLlm && !confirm("This sends filing text to Claude and costs money (roughly $0.15 to $0.80 per filing). Continue?")) return;
+  analyze(ticker, useLlm);
+}
+
+async function init() {
+  $("form").addEventListener("submit", submit);
+  $("chips").replaceChildren(...SAMPLE_TICKERS.map((t) => {
+    const chip = el("button", { type: "button", class: "chip" }, t);
+    chip.addEventListener("click", () => { $("ticker").value = t; $("form").requestSubmit(); });
+    return chip;
+  }));
+  try {
+    const health = await (await fetch("/api/health")).json();
+    if (!health.llm_available) {
+      $("llm").disabled = true;
+      $("llm-label").classList.add("disabled");
+      $("llm-text").textContent = "Claude extraction unavailable (ANTHROPIC_API_KEY not set)";
+    }
+  } catch (_) { /* API not reachable; the analyze call will report it */ }
+  const fromHash = location.hash.slice(1);
+  if (fromHash) { $("ticker").value = fromHash.toUpperCase(); $("form").requestSubmit(); }
+}
+init();
+</script>
+</body>
+</html>
