@@ -42,4 +42,31 @@ METRIC_TAGS: dict[str, list[tuple[str, str]]] = {
     "rd_expense": [
         ("us-gaap", "ResearchAndDevelopmentExpense"),
     ],
+    "cash_and_equivalents": [
+        ("us-gaap", "CashAndCashEquivalentsAtCarryingValue"),
+        (
+            "us-gaap",
+            "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+        ),
+    ],
+    "total_assets": [
+        ("us-gaap", "Assets"),
+    ],
+    "total_liabilities": [
+        ("us-gaap", "Liabilities"),
+    ],
+    "stockholders_equity": [
+        ("us-gaap", "StockholdersEquity"),
+        (
+            "us-gaap",
+            "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+        ),
+    ],
+    "operating_income": [
+        ("us-gaap", "OperatingIncomeLoss"),
+    ],
+    "interest_expense": [
+        ("us-gaap", "InterestExpense"),
+        ("us-gaap", "InterestExpenseDebt"),
+    ],
 }
