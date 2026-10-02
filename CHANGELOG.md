@@ -4,7 +4,7 @@ All notable changes to TenK are recorded here, newest first.
 
 ## Unreleased
 
-- Added `app/extraction`: Layer 2 qualitative extraction. `extract_qualitative`
+- Added `app/extraction`: qualitative extraction. `extract_qualitative`
   takes a resolved filing (and optionally its prior year) and returns a
   `QualitativeExtraction` bundling five schema-constrained Claude calls —
   risk-factor changes vs prior year (Item 1A), management tone / forward
@@ -17,8 +17,8 @@ All notable changes to TenK are recorded here, newest first.
   (reusing `anchors.py`) before being sent, and the related-party / revenue-
   concentration extractors skip the API entirely and return a structured
   negative when no relevant keyword appears. Output schemas
-  (`app/extraction/models.py`) use booleans and enums close to what Layer 2.5
-  risk scoring will consume. Model defaults to `claude-opus-5`, overridable
+  (`app/extraction/models.py`) use booleans and enums close to what risk
+  scoring will consume. Model defaults to `claude-opus-5`, overridable
   via `TENK_EXTRACTION_MODEL`. Uses the Anthropic SDK's `messages.parse`
   (structured outputs) with adaptive thinking. 10 tests, all with a fake LLM
   — no network in CI.
