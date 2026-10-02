@@ -1,3 +1,5 @@
+import pytest
+
 from app.parser.items import extract_items
 
 BUSINESS_BODY = "Lorem ipsum business description. " * 20
@@ -138,10 +140,7 @@ def test_extract_items_follows_item_8_redirect_to_item_15() -> None:
     assert result.text.startswith(
         "Report of Independent Registered Public Accounting Firm"
     )
-    assert (
-        "We have audited the accompanying consolidated balance sheets"
-        in result.text
-    )
+    assert "We have audited the accompanying consolidated balance sheets" in result.text
     assert "set forth in our Consolidated" not in result.text
     assert result.reason is not None
     assert "cross-reference" in result.reason
@@ -151,7 +150,7 @@ def test_extract_items_redirect_falls_back_when_no_real_heading_found() -> None:
     # Same short Item 8 stub, but no real auditor-report heading anywhere
     # to redirect to (only the index entry, which stays an index entry).
     html_no_real_heading = REDIRECT_FILING_HTML.replace(
-        '<div><p>Report of Independent Registered Public Accounting Firm</p>\n'
+        "<div><p>Report of Independent Registered Public Accounting Firm</p>\n"
         f"<p>{AUDITOR_REPORT_BODY}</p></div>",
         "",
     )
@@ -199,8 +198,48 @@ def test_extract_items_skips_index_entry_with_page_number_on_next_line() -> None
     assert result.text.startswith(
         "Report of Independent Registered Public Accounting Firm"
     )
-    assert (
-        "We have audited the accompanying consolidated balance sheets"
-        in result.text
-    )
+    assert "We have audited the accompanying consolidated balance sheets" in result.text
     assert "appear on pages 162" not in result.text
+
+
+def _separator_filing(separator: str) -> str:
+    return f"""
+<html><body>
+<table>
+<tr><td>Item 1{separator}</td><td>Business</td><td>1</td></tr>
+<tr><td>Item 8{separator}</td><td>Financial Statements</td><td>28</td></tr>
+<tr><td>Item 9A{separator}</td><td>Controls and Procedures</td><td>52</td></tr>
+</table>
+<div><p>{"This Annual Report contains forward-looking statements. " * 15}</p></div>
+<div><p>ITEM 1 {separator} Business</p><p>{BUSINESS_BODY}</p></div>
+<div><p>ITEM 8 {separator} Financial Statements</p><p>{FINANCIALS_BODY}</p></div>
+<div><p>ITEM 9A {separator} Controls and Procedures</p><p>{CONTROLS_BODY}</p></div>
+</body></html>
+"""
+
+
+@pytest.mark.parametrize("separator", [".", ":", "-", "\u2013", "\u2014"])
+def test_extract_items_accepts_any_heading_separator(separator: str) -> None:
+    results = extract_items(_separator_filing(separator), ["8", "9A"])
+
+    assert results["8"].found
+    assert results["8"].text.startswith("ITEM 8")
+    assert "consolidated financial statement notes" in results["8"].text
+    assert results["9A"].found
+    assert "controls and procedures evaluation" in results["9A"].text
+
+
+AMENDMENT_HTML = f"""
+<html><body>
+<div><p>Amendment No. 1 amends Part II, Item 9A in its entirety.</p></div>
+<div><p>ITEM 9A. CONTROLS AND PROCEDURES</p><p>{CONTROLS_BODY}</p></div>
+</body></html>
+"""
+
+
+def test_extract_items_finds_lone_heading_in_amendment_without_toc() -> None:
+    results = extract_items(AMENDMENT_HTML, ["9A", "8"])
+
+    assert results["9A"].found
+    assert "controls and procedures evaluation" in results["9A"].text
+    assert not results["8"].found

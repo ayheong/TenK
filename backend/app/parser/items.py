@@ -26,7 +26,12 @@ MIN_SECTION_LENGTH = 200
 # substring match would also hit cross-references embedded mid-sentence
 # (e.g. "...appearing under Item 9A." inside an auditor's report), which
 # would silently truncate the real section at the wrong point.
-ITEM_PATTERN = re.compile(r"(?m)^\s*Item\s+(\d{1,2}[A-Za-z]?)\.", re.IGNORECASE)
+#
+# The number may be followed by a period, colon or dash ("ITEM 8 - Financial
+# Statements", "ITEM 4: MINE SAFETY"); filing agents differ.
+ITEM_PATTERN = re.compile(
+    r"(?m)^\s*Item\s+(\d{1,2}[A-Za-z]?)\s*[.:\u2013\u2014-]", re.IGNORECASE
+)
 
 # Some filers (e.g. NVIDIA, JPMorgan, Chevron) satisfy Item 8 with a short
 # cross-reference notice ("set forth on page 162", "incorporated by
@@ -71,9 +76,13 @@ def _find_matches(text: str) -> list[tuple[int, str]]:
 
 def _body_matches(matches: list[tuple[int, str]]) -> list[tuple[int, str]]:
     """Drop the table-of-contents cluster: everything up to and including
-    the first large gap between consecutive matches."""
-    for i in range(len(matches) - 1):
-        gap = matches[i + 1][0] - matches[i][0]
+    the first large gap between consecutive matches. A filing with no tight
+    cluster has no table of contents (e.g. a 10-K/A restating a single
+    Item), so every match is a real heading."""
+    gaps = [b[0] - a[0] for a, b in zip(matches, matches[1:])]
+    if not any(gap < TOC_GAP_THRESHOLD for gap in gaps):
+        return matches
+    for i, gap in enumerate(gaps):
         if gap >= TOC_GAP_THRESHOLD:
             return matches[i + 1 :]
     return []
