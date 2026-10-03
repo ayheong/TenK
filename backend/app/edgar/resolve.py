@@ -24,12 +24,14 @@ def cache_path(cik: int, accession: str, primary_document: str) -> Path:
 
 
 def lookup_cik(client: Client, ticker: str) -> int:
-    """Return SEC CIK for a stock ticker."""
+    """Return SEC CIK for a stock ticker. The SEC writes share classes with a
+    hyphen (BRK-B), so a dotted ticker (BRK.B) is matched as either form."""
     target = ticker.upper()
+    accepted = {target, target.replace(".", "-")}
     data = client.get_json(COMPANY_TICKERS_URL)
 
     for entry in data.values():
-        if entry["ticker"].upper() == target:
+        if entry["ticker"].upper() in accepted:
             return int(entry["cik_str"])
 
     raise ValueError(f"Ticker not found: {ticker}")

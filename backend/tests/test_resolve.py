@@ -12,6 +12,7 @@ from app.edgar.resolve import (
     find_latest_10k,
     lookup_cik,
     resolve_filing,
+    resolve_filing_pair,
     submissions_url,
 )
 
@@ -253,3 +254,70 @@ def test_resolve_filing_raises_without_10k_or_known_predecessor() -> None:
 
     with pytest.raises(ValueError, match="No 10-K found"):
         resolve_filing("AAPL")
+
+
+@respx.mock
+def test_resolve_filing_pair_returns_current_and_prior(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(resolve, "CACHE_ROOT", tmp_path)
+    respx.get(COMPANY_TICKERS_URL).mock(
+        return_value=httpx.Response(200, json=TICKERS_FIXTURE)
+    )
+    respx.get(submissions_url(CIK)).mock(
+        return_value=httpx.Response(200, json=SUBMISSIONS_FIXTURE)
+    )
+    respx.get(
+        filing_document_url(CIK, "0000320193-25-000079", "aapl-20250927.htm")
+    ).mock(return_value=httpx.Response(200, text="<html>current</html>"))
+    respx.get(
+        filing_document_url(CIK, "0000320193-24-000081", "aapl-20240928.htm")
+    ).mock(return_value=httpx.Response(200, text="<html>prior</html>"))
+
+    current, prior = resolve_filing_pair("AAPL")
+
+    assert current.accession == "0000320193-25-000079"
+    assert current.prior_accession == "0000320193-24-000081"
+    assert prior is not None
+    assert prior.accession == "0000320193-24-000081"
+    assert prior.cached_path.endswith("aapl-20240928.htm")
+
+
+@respx.mock
+def test_resolve_filing_pair_has_no_prior_for_a_single_10k(
+    tmp_path, monkeypatch
+) -> None:
+    monkeypatch.setattr(resolve, "CACHE_ROOT", tmp_path)
+    one_filing = {
+        "filings": {
+            "recent": {
+                key: values[1:2]
+                for key, values in SUBMISSIONS_FIXTURE["filings"]["recent"].items()
+            }
+        }
+    }
+    respx.get(COMPANY_TICKERS_URL).mock(
+        return_value=httpx.Response(200, json=TICKERS_FIXTURE)
+    )
+    respx.get(submissions_url(CIK)).mock(
+        return_value=httpx.Response(200, json=one_filing)
+    )
+    respx.get(
+        filing_document_url(CIK, "0000320193-25-000079", "aapl-20250927.htm")
+    ).mock(return_value=httpx.Response(200, text="<html>current</html>"))
+
+    current, prior = resolve_filing_pair("AAPL")
+
+    assert current.prior_accession is None
+    assert prior is None
+
+
+@respx.mock
+def test_lookup_cik_matches_dotted_share_class_to_hyphenated_ticker() -> None:
+    respx.get(COMPANY_TICKERS_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={"0": {"cik_str": 1067983, "ticker": "BRK-B", "title": "Berkshire"}},
+        )
+    )
+
+    assert lookup_cik(Client(), "brk.b") == 1067983
+    assert lookup_cik(Client(), "BRK-B") == 1067983
