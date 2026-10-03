@@ -212,6 +212,15 @@ function formatValue(value, unit) {
   return Number(value).toLocaleString(undefined, { maximumFractionDigits: 3 });
 }
 
+function safeUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.href : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 function badge(text, kind) { return el("span", { class: `badge ${kind}` }, text); }
 
 function methodBadge(section, llmEnabled) {
@@ -250,7 +259,7 @@ function renderFiling(analysis) {
       ["Filed", f.filing_date],
       ["Accession", el("span", { class: "mono" }, f.accession)],
       ["Prior-year accession", f.prior_accession ? el("span", { class: "mono" }, f.prior_accession) : "none"],
-      ["Document", el("a", { href: f.html_url, target: "_blank", rel: "noopener" }, "Open on SEC.gov")],
+      ["Document", safeUrl(f.html_url) ? el("a", { href: safeUrl(f.html_url), target: "_blank", rel: "noopener" }, "Open on SEC.gov") : "unavailable"],
     ])));
 }
 

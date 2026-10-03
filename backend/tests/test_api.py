@@ -1,5 +1,6 @@
 from datetime import date
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -137,3 +138,24 @@ def test_health_reports_llm_availability(monkeypatch) -> None:
 
     monkeypatch.delenv("ANTHROPIC_API_KEY")
     assert client.get("/api/health").json() == {"llm_available": False}
+
+
+def test_frontend_page_is_served() -> None:
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "TenK demo" in response.text
+    assert "/api/analyze/" in response.text
+
+
+def test_sec_failure_is_502(monkeypatch) -> None:
+    def fail(ticker: str, *, use_llm: bool):
+        raise httpx.ConnectError("boom")
+
+    monkeypatch.setattr(service, "analyze", fail)
+
+    response = client.get("/api/analyze/TEST")
+
+    assert response.status_code == 502
+    assert "SEC request failed" in response.json()["detail"]
