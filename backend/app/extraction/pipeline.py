@@ -218,8 +218,19 @@ def _run_going_concern(
         item_9a.text if item_9a.found else None,
     )
     if by_rules is not None:
+        reason = None
+        if by_rules.auditor_opinion_type == "not_found":
+            reason = (
+                "no audit opinion in the located text; going-concern and "
+                "material-weakness results cover only that text"
+            )
         return _section(
-            "going_concern", "8", found=True, parsed=by_rules, method="rules"
+            "going_concern",
+            "8",
+            found=True,
+            parsed=by_rules,
+            method="rules",
+            reason=reason,
         )
 
     text = "\n\n".join(parts)

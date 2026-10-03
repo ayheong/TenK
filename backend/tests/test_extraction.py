@@ -320,3 +320,24 @@ def test_pipeline_falls_back_to_llm_when_rules_are_undecided(tmp_path) -> None:
 
     assert result.going_concern.method == "llm"
     assert any(c[0] is models.GoingConcernOpinion for c in llm.calls)
+
+
+def test_rules_result_notes_when_no_audit_opinion_was_located(tmp_path) -> None:
+    html = _filing_html().replace("present fairly", "are presented")
+    filing = _write_filing(tmp_path, "current.htm", html)
+    llm = FakeLLM(responses=DEFAULT_RESPONSES)
+
+    result = extract_qualitative(filing, None, llm=llm)
+
+    section = result.going_concern
+    assert section.method == "rules"
+    assert section.parsed.auditor_opinion_type == "not_found"
+    assert "no audit opinion" in section.reason
+
+
+def test_rules_result_has_no_note_when_opinion_is_found(tmp_path) -> None:
+    filing = _write_filing(tmp_path, "current.htm", _filing_html())
+
+    result = extract_qualitative(filing, None, llm=FakeLLM(responses=DEFAULT_RESPONSES))
+
+    assert result.going_concern.reason is None
