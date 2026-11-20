@@ -20,3 +20,5 @@ class FilingRecord(BaseModel):
     html_url: str
     cached_path: str
     prior_accession: str | None = None
+    sic: str | None = None
+    sic_description: str | None = None

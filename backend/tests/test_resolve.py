@@ -6,6 +6,7 @@ from app.edgar import resolve
 from app.edgar.client import Client
 from app.edgar.resolve import (
     COMPANY_TICKERS_URL,
+    fetch_industry,
     fetch_filing_html,
     filing_document_url,
     find_10k_filings,
@@ -321,3 +322,52 @@ def test_lookup_cik_matches_dotted_share_class_to_hyphenated_ticker() -> None:
 
     assert lookup_cik(Client(), "brk.b") == 1067983
     assert lookup_cik(Client(), "BRK-B") == 1067983
+
+
+@respx.mock
+def test_fetch_industry_reads_sic_code_and_description() -> None:
+    payload = {"sic": "6021", "sicDescription": "National Commercial Banks"}
+    respx.get(submissions_url(CIK)).mock(
+        return_value=httpx.Response(200, json=payload)
+    )
+
+    assert fetch_industry(Client(), CIK) == ("6021", "National Commercial Banks")
+
+
+@respx.mock
+def test_fetch_industry_is_none_when_edgar_omits_it() -> None:
+    respx.get(submissions_url(CIK)).mock(
+        return_value=httpx.Response(200, json={"sic": "", "filings": {}})
+    )
+
+    assert fetch_industry(Client(), CIK) == (None, None)
+
+
+@respx.mock
+def test_resolved_filing_pair_carries_sic_on_both_records(
+    tmp_path, monkeypatch
+) -> None:
+    monkeypatch.setattr(resolve, "CACHE_ROOT", tmp_path)
+    submissions = {
+        **SUBMISSIONS_FIXTURE,
+        "sic": "3571",
+        "sicDescription": "Electronic Computers",
+    }
+    respx.get(COMPANY_TICKERS_URL).mock(
+        return_value=httpx.Response(200, json=TICKERS_FIXTURE)
+    )
+    respx.get(submissions_url(CIK)).mock(
+        return_value=httpx.Response(200, json=submissions)
+    )
+    for accession, document in [
+        ("0000320193-25-000079", "aapl-20250927.htm"),
+        ("0000320193-24-000081", "aapl-20240928.htm"),
+    ]:
+        respx.get(filing_document_url(CIK, accession, document)).mock(
+            return_value=httpx.Response(200, text="<html></html>")
+        )
+
+    current, prior = resolve_filing_pair("AAPL")
+
+    assert (current.sic, current.sic_description) == ("3571", "Electronic Computers")
+    assert prior is not None and prior.sic == "3571"

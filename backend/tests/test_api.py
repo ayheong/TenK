@@ -159,3 +159,22 @@ def test_sec_failure_is_502(monkeypatch) -> None:
 
     assert response.status_code == 502
     assert "SEC request failed" in response.json()["detail"]
+
+
+def test_analysis_reports_sic_and_sector(stub_pipeline, monkeypatch) -> None:
+    bank = _filing().model_copy(
+        update={"sic": "6021", "sic_description": "National Commercial Banks"}
+    )
+    monkeypatch.setattr(service, "resolve_filing_pair", lambda t: (bank, None))
+
+    filing = service.analyze("TEST", use_llm=False).filing
+
+    assert (filing.sic, filing.sic_description) == ("6021", "National Commercial Banks")
+    assert filing.sector == "financials"
+
+
+def test_analysis_sector_defaults_to_other_without_sic(stub_pipeline) -> None:
+    filing = service.analyze("TEST", use_llm=False).filing
+
+    assert filing.sic is None
+    assert filing.sector == "other"

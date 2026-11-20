@@ -1,6 +1,7 @@
 from app.api.models import Analysis, FilingInfo, MetricRow
 from app.edgar.client import Client
 from app.edgar.resolve import resolve_filing_pair
+from app.edgar.sector import classify_sector
 from app.extraction.llm import ExtractionError, LLMClient
 from app.extraction.pipeline import extract_qualitative
 from app.scoring.disclosure import compute_disclosure_subscore
@@ -32,7 +33,10 @@ def analyze(ticker: str, *, use_llm: bool) -> Analysis:
         filing, prior, llm=LLMClient() if use_llm else DisabledLLM()
     )
     return Analysis(
-        filing=FilingInfo(**filing.model_dump(include=set(FilingInfo.model_fields))),
+        filing=FilingInfo(
+            **filing.model_dump(include=set(FilingInfo.model_fields)),
+            sector=classify_sector(filing.sic),
+        ),
         llm_enabled=use_llm,
         metrics=[
             MetricRow(

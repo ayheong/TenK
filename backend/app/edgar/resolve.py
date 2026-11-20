@@ -62,6 +62,14 @@ def find_10k_filings(client: Client, cik: int) -> list[FilingSummary]:
     ]
 
 
+def fetch_industry(client: Client, cik: int) -> tuple[str | None, str | None]:
+    """Return (SIC code, SIC description) from the submissions data; either is
+    None when EDGAR does not report it. The code is kept as a string because
+    it is a label, not a number."""
+    data = client.get_json(submissions_url(cik))
+    return (data.get("sic") or None, data.get("sicDescription") or None)
+
+
 def find_latest_10k(client: Client, cik: int) -> FilingSummary:
     """Return the most recent 10-K filing."""
     filings = find_10k_filings(client, cik)
@@ -114,6 +122,7 @@ def _build_filing_record(
     cik: int,
     summary: FilingSummary,
     prior_accession: str | None,
+    industry: tuple[str | None, str | None] = (None, None),
 ) -> FilingRecord:
     cached = fetch_filing_html(client, cik, summary.accession, summary.primary_document)
     return FilingRecord(
@@ -125,6 +134,8 @@ def _build_filing_record(
         html_url=filing_document_url(cik, summary.accession, summary.primary_document),
         cached_path=str(cached),
         prior_accession=prior_accession,
+        sic=industry[0],
+        sic_description=industry[1],
     )
 
 
@@ -134,7 +145,10 @@ def resolve_filing(ticker: str) -> FilingRecord:
     cik, filings = find_10ks_with_predecessor(client, lookup_cik(client, ticker))
 
     prior_accession = filings[1].accession if len(filings) > 1 else None
-    return _build_filing_record(client, ticker, cik, filings[0], prior_accession)
+    industry = fetch_industry(client, cik)
+    return _build_filing_record(
+        client, ticker, cik, filings[0], prior_accession, industry
+    )
 
 
 def resolve_filing_pair(ticker: str) -> tuple[FilingRecord, FilingRecord | None]:
@@ -145,11 +159,16 @@ def resolve_filing_pair(ticker: str) -> tuple[FilingRecord, FilingRecord | None]
     cik, filings = find_10ks_with_predecessor(client, lookup_cik(client, ticker))
 
     prior_accession = filings[1].accession if len(filings) > 1 else None
-    current = _build_filing_record(client, ticker, cik, filings[0], prior_accession)
+    industry = fetch_industry(client, cik)
+    current = _build_filing_record(
+        client, ticker, cik, filings[0], prior_accession, industry
+    )
 
     prior = None
     if len(filings) > 1:
         prior_prior = filings[2].accession if len(filings) > 2 else None
-        prior = _build_filing_record(client, ticker, cik, filings[1], prior_prior)
+        prior = _build_filing_record(
+            client, ticker, cik, filings[1], prior_prior, industry
+        )
 
     return current, prior

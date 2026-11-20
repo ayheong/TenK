@@ -2,6 +2,7 @@ from datetime import date
 
 from pydantic import BaseModel
 
+from app.edgar.sector import Sector
 from app.extraction.models import QualitativeExtraction
 from app.scoring.models import Subscore
 
@@ -14,6 +15,9 @@ class FilingInfo(BaseModel):
     filing_date: date
     fiscal_year_end: date | None
     html_url: str
+    sic: str | None = None
+    sic_description: str | None = None
+    sector: Sector = "other"
 
 
 class MetricRow(BaseModel):
