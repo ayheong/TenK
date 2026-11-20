@@ -1,4 +1,10 @@
-from app.api.models import Analysis, FilingInfo, MetricRow
+from app.api.models import (
+    Analysis,
+    FilingInfo,
+    HistoryPoint,
+    MetricHistory,
+    MetricRow,
+)
 from app.edgar.client import Client
 from app.edgar.resolve import resolve_filing_pair
 from app.edgar.sector import classify_sector
@@ -9,7 +15,7 @@ from app.scoring.governance import compute_governance_subscore
 from app.scoring.leverage import compute_leverage_subscore
 from app.scoring.liquidity import compute_liquidity_subscore
 from app.scoring.litigation import compute_litigation_subscore
-from app.xbrl.extract import extract_all
+from app.xbrl.extract import extract_all_with_history
 
 LLM_DISABLED_MESSAGE = "LLM disabled for this run"
 
@@ -28,7 +34,7 @@ def analyze(ticker: str, *, use_llm: bool) -> Analysis:
     """Run the full pipeline for one ticker. Raises ValueError for an unknown
     ticker or one with no 10-K."""
     filing, prior = resolve_filing_pair(ticker)
-    metrics = extract_all(Client(), filing)
+    metrics, history = extract_all_with_history(Client(), filing)
     extraction = extract_qualitative(
         filing, prior, llm=LLMClient() if use_llm else DisabledLLM()
     )
@@ -47,6 +53,15 @@ def analyze(ticker: str, *, use_llm: bool) -> Analysis:
                 source=m.source,
             )
             for m in metrics
+        ],
+        history=[
+            MetricHistory(
+                key=key,
+                unit=entry["unit"],
+                xbrl_tag=entry["xbrl_tag"],
+                points=[HistoryPoint(end=end, value=value) for end, value in entry["points"]],
+            )
+            for key, entry in history.items()
         ],
         subscores=[
             compute_liquidity_subscore(metrics),

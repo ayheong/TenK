@@ -28,6 +28,20 @@ class MetricRow(BaseModel):
     source: str
 
 
+class HistoryPoint(BaseModel):
+    end: date
+    value: float
+
+
+class MetricHistory(BaseModel):
+    """Recent annual values behind a trend, oldest first, for charting."""
+
+    key: str
+    unit: str
+    xbrl_tag: str | None
+    points: list[HistoryPoint]
+
+
 class Analysis(BaseModel):
     """Everything the pipeline produced for one ticker, for review in the demo.
 
@@ -36,5 +50,6 @@ class Analysis(BaseModel):
     filing: FilingInfo
     llm_enabled: bool
     metrics: list[MetricRow]
+    history: list[MetricHistory] = []
     subscores: list[Subscore]
     extraction: QualitativeExtraction

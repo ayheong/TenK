@@ -5,6 +5,7 @@ from app.edgar.models import FilingRecord
 from app.edgar.sector import classify_sector
 from app.xbrl.derive import derive_ratios
 from app.xbrl.models import MetricSnapshot
+from app.xbrl.trends import derive_trends, metric_history
 from app.xbrl.tags import METRIC_TAGS
 
 
@@ -171,9 +172,11 @@ def extract_net_income_yoy_from_facts(
     )
 
 
-def extract_all(client: Client, filing: FilingRecord) -> list[MetricSnapshot]:
-    """Fetch Company Facts once and return canonical metrics plus every
-    derivable ratio (gross margin, R&D % of revenue, net income YoY %)."""
+def extract_all_with_history(
+    client: Client, filing: FilingRecord
+) -> tuple[list[MetricSnapshot], dict[str, dict]]:
+    """Fetch Company Facts once and return canonical metrics, every derivable
+    ratio and trend, plus the yearly history behind the trends (for charts)."""
     facts = fetch_company_facts(client, filing.cik)
     snapshots = extract_metrics_from_facts(facts, filing)
     snapshots += derive_ratios(snapshots, sector=classify_sector(filing.sic))
@@ -182,4 +185,11 @@ def extract_all(client: Client, filing: FilingRecord) -> list[MetricSnapshot]:
     if yoy is not None:
         snapshots.append(yoy)
 
-    return snapshots
+    snapshots += derive_trends(facts, filing, snapshots)
+    return snapshots, metric_history(facts, filing)
+
+
+def extract_all(client: Client, filing: FilingRecord) -> list[MetricSnapshot]:
+    """Canonical metrics plus every derivable ratio and trend. One Company
+    Facts request."""
+    return extract_all_with_history(client, filing)[0]

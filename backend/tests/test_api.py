@@ -52,11 +52,14 @@ def stub_pipeline(monkeypatch):
     monkeypatch.setattr(service, "resolve_filing_pair", lambda t: (_filing(), None))
     monkeypatch.setattr(
         service,
-        "extract_all",
-        lambda c, f: [
-            _metric("working_capital_ratio", 1.5),
-            _metric("debt_to_equity", 1.0),
-        ],
+        "extract_all_with_history",
+        lambda c, f: (
+            [
+                _metric("working_capital_ratio", 1.5),
+                _metric("debt_to_equity", 1.0),
+            ],
+            {},
+        ),
     )
     monkeypatch.setattr(service, "extract_qualitative", fake_extract_qualitative)
     monkeypatch.setattr(service, "Client", lambda: None)
@@ -178,3 +181,26 @@ def test_analysis_sector_defaults_to_other_without_sic(stub_pipeline) -> None:
 
     assert filing.sic is None
     assert filing.sector == "other"
+
+
+def test_analysis_includes_chart_history(stub_pipeline, monkeypatch) -> None:
+    history = {
+        "revenue": {
+            "unit": "USD",
+            "xbrl_tag": "Revenues",
+            "points": [(date(2024, 12, 31), 100.0), (date(2025, 12, 31), 120.0)],
+        }
+    }
+    monkeypatch.setattr(
+        service, "extract_all_with_history", lambda c, f: ([_metric("x", 1.0)], history)
+    )
+
+    analysis = service.analyze("TEST", use_llm=False)
+
+    assert [h.key for h in analysis.history] == ["revenue"]
+    assert [p.value for p in analysis.history[0].points] == [100.0, 120.0]
+    assert analysis.model_dump(mode="json")["history"][0]["points"][0]["end"] == "2024-12-31"
+
+
+def test_analysis_history_defaults_to_empty(stub_pipeline) -> None:
+    assert service.analyze("TEST", use_llm=False).history == []
