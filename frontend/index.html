@@ -64,7 +64,7 @@
     background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
     padding: 14px 16px; box-shadow: var(--shadow);
   }
-  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); }
+  .grid { display: grid; gap: 12px; align-items: start; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); }
   .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
   .card h3 { margin: 0; font-size: 15px; }
   .sub { color: var(--muted); font-size: 12.5px; }
@@ -110,6 +110,18 @@
   .explain .lbl { color: var(--muted); font-weight: 600; }
   .explain .here { border-left: 3px solid var(--accent); padding-left: 8px; }
   details.about { margin-top: 10px; }
+  /* Opening a dropdown must only push content below it down: fixed column
+     widths keep tables from reflowing sideways, and the grid does not stretch
+     neighbouring cards to match. */
+  #metrics { table-layout: fixed; }
+  #metrics th:nth-child(1) { width: 27%; } #metrics th:nth-child(2) { width: 13%; }
+  #metrics th:nth-child(3) { width: 8%; } #metrics th:nth-child(4) { width: 14%; }
+  #metrics th:nth-child(5) { width: 38%; }
+  table.signals { table-layout: fixed; }
+  table.signals th:nth-child(1) { width: 36%; } table.signals th:nth-child(2) { width: 16%; }
+  table.signals th:nth-child(3) { width: 12%; } table.signals th:nth-child(4) { width: 36%; }
+  .card td, .card th { overflow-wrap: anywhere; }
+  .explain { overflow-wrap: anywhere; }
   .chart { width: 100%; height: auto; display: block; margin-top: 8px; }
   .chart .axis { stroke: var(--border); stroke-width: 1; }
   .chart .bar-pos { fill: var(--accent); } .chart .bar-neg { fill: var(--severe); }
@@ -469,7 +481,7 @@ function renderSubscore(sub) {
       ["This company", `${SUBSCORE_LABELS[sub.key]} scored ${sub.score.toFixed(0)} of 100, in the ${band(sub.score)} range.`],
     ]));
   }
-  const table = el("table", {},
+  const table = el("table", { class: "signals" },
     el("thead", {}, el("tr", {}, el("th", {}, "Signal"), el("th", { class: "num" }, "Value"),
       el("th", { class: "num" }, "Points"), el("th", {}, "Source"))),
     el("tbody", {}, sub.signals.map((s) => el("tr", {},
