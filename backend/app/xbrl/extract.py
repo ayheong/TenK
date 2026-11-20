@@ -1,3 +1,5 @@
+from datetime import date
+
 from app.edgar.client import Client
 from app.edgar.models import FilingRecord
 from app.xbrl.derive import derive_ratios
@@ -15,6 +17,19 @@ def fetch_company_facts(client: Client, cik: int) -> dict:
     return data.get("facts", {})
 
 
+def _duration_days(entry: dict) -> int | None:
+    """Length of a duration fact's period; None for instants (balance sheet)."""
+    if "start" not in entry or "end" not in entry:
+        return None
+    return (date.fromisoformat(entry["end"]) - date.fromisoformat(entry["start"])).days
+
+
+def _prefer_longest_period(entries: list[dict]) -> dict:
+    """Some 10-Ks tag a 3-month Q4 value with the same period end as the full
+    year, so on a tie take the longest duration. Instants keep file order."""
+    return max(entries, key=lambda e: _duration_days(e) or 0)
+
+
 def _match_fact(
     entries: list[dict], accession: str, fiscal_year_end: str | None
 ) -> dict | None:
@@ -23,9 +38,11 @@ def _match_fact(
     `end` date near the filing date rather than the fiscal year end)."""
     accession_matches = [e for e in entries if e.get("accn") == accession]
     if fiscal_year_end is not None:
-        for entry in accession_matches:
-            if entry.get("end") == fiscal_year_end:
-                return entry
+        year_end_matches = [
+            e for e in accession_matches if e.get("end") == fiscal_year_end
+        ]
+        if year_end_matches:
+            return _prefer_longest_period(year_end_matches)
     return accession_matches[0] if accession_matches else None
 
 
@@ -64,7 +81,9 @@ def _prior_period_value(
                 (
                     e
                     for e in entries
-                    if e.get("accn") == accession and e.get("end") != fiscal_year_end
+                    if e.get("accn") == accession
+                    and e.get("end") != fiscal_year_end
+                    and (_duration_days(e) or 365) >= 300
                 ),
                 key=lambda e: e["end"],
                 reverse=True,
@@ -143,7 +162,7 @@ def extract_net_income_yoy_from_facts(
         cik=net_income.cik,
         fiscal_year=net_income.fiscal_year,
         metric_key="net_income_yoy_pct",
-        value=(net_income.value - prior_value) / prior_value,
+        value=(net_income.value - prior_value) / abs(prior_value),
         unit="ratio",
         xbrl_tag=f"{net_income.xbrl_tag} (yoy)",
         source="derived",
