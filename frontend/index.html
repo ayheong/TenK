@@ -99,6 +99,17 @@
     background: var(--surface-2); padding: 12px; border-radius: 8px; overflow: auto;
     max-height: 420px; font-size: 12px;
   }
+  details.term { margin: 0; }
+  details.term > summary { color: var(--text); font-size: inherit; }
+  details.term > summary:hover { color: var(--accent); }
+  .explain {
+    margin: 6px 0 4px; padding: 8px 10px; background: var(--surface-2); border-radius: 8px;
+    color: var(--text); font-size: 12.5px; line-height: 1.45; font-weight: 400;
+  }
+  .explain p { margin: 0 0 6px; } .explain p:last-child { margin-bottom: 0; }
+  .explain .lbl { color: var(--muted); font-weight: 600; }
+  .explain .here { border-left: 3px solid var(--accent); padding-left: 8px; }
+  details.about { margin-top: 10px; }
   a { color: var(--accent); }
   .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
   td.mono { overflow-wrap: anywhere; font-size: 11.5px; }
@@ -133,7 +144,7 @@
     <section id="filing"></section>
     <section>
       <h2>Subscores</h2>
-      <p class="hint">Higher means more fragile. Weights come from the scoring config. Signals show the raw value, how many points it contributed and where it came from.</p>
+      <p class="hint">Higher means more fragile. Weights come from the scoring config. Signals show the raw value, how many points it contributed and where it came from. Click a signal name, or a card's "What does this mean?", for plain-English help.</p>
       <div class="grid" id="subscores"></div>
     </section>
     <section>
@@ -143,6 +154,7 @@
     </section>
     <section>
       <h2>XBRL metrics</h2>
+      <p class="hint">Click a metric name to see what it means and what this number says about the company.</p>
       <div class="card"><table id="metrics"></table></div>
     </section>
     <section>
@@ -212,6 +224,142 @@ function formatValue(value, unit) {
   return Number(value).toLocaleString(undefined, { maximumFractionDigits: 3 });
 }
 
+
+// Plain-English glossary. `what` defines the term, `high` and `low` say what a
+// high or low reading tends to mean for a company. `here(value)` returns a
+// sentence about the number actually shown.
+const pct = (v, d = 1) => `${(v * 100).toFixed(d)}%`;
+const usd = (v) => formatValue(v, "USD");
+const GLOSSARY = {
+  revenue: { name: "Revenue", what: "Total sales for the fiscal year before any costs are subtracted.",
+    high: "A larger business, usually better able to absorb shocks.", low: "A smaller or shrinking business; compare with last year before judging.",
+    here: (v) => `The company brought in ${usd(v)} over the year.` },
+  net_income: { name: "Net income", what: "Profit after every cost, interest and tax. Also called earnings or the bottom line.",
+    high: "The business is profitable and can fund itself or pay down debt.", low: "Near zero or negative means the company is losing money.",
+    here: (v) => v >= 0 ? `The company earned ${usd(v)} after all costs.` : `The company lost ${usd(-v)} over the year.` },
+  operating_cash_flow: { name: "Operating cash flow", what: "Cash actually generated (or used) by running the business, before investing and financing.",
+    high: "Core operations produce real cash, which is healthier than profit alone.", low: "Negative means operations are consuming cash. For banks this is distorted by lending and trading and is not read as burn.",
+    here: (v) => v >= 0 ? `Operations generated ${usd(v)} in cash.` : `Operations used ${usd(-v)} of cash.` },
+  long_term_debt: { name: "Long-term debt", what: "Borrowings due in more than one year, such as bonds and term loans.",
+    high: "More fixed repayment obligations; riskier if income falls.", low: "Little long-term borrowing, so more flexibility.",
+    here: (v) => `${usd(v)} is owed on debt due beyond a year.` },
+  short_term_debt: { name: "Short-term debt", what: "Borrowings due within a year, including the current part of long-term debt.",
+    high: "Large near-term repayments; the company must refinance or pay from cash.", low: "Few near-term debt payments.",
+    here: (v) => `${usd(v)} of debt falls due within a year.` },
+  gross_profit: { name: "Gross profit", what: "Revenue minus the direct cost of making or delivering the product.",
+    high: "Each sale leaves plenty to cover overhead and profit.", low: "Thin room to cover other costs.",
+    here: (v) => `${usd(v)} remained after direct costs.` },
+  current_assets: { name: "Current assets", what: "Cash and things expected to turn into cash within a year, such as receivables and inventory.",
+    high: "More short-term resources to meet bills.", low: "Little short-term cushion.",
+    here: (v) => `${usd(v)} is cash or expected to become cash within a year.` },
+  current_liabilities: { name: "Current liabilities", what: "Bills and debts due within a year.",
+    high: "Heavy near-term obligations.", low: "Few near-term obligations.",
+    here: (v) => `${usd(v)} must be paid within a year.` },
+  shares_outstanding: { name: "Shares outstanding", what: "Number of shares held by investors. New share issues dilute existing holders.",
+    high: "Not good or bad alone; a rising count over time means dilution.", low: "Fewer shares, often after buybacks.",
+    here: (v) => `${v.toLocaleString()} shares are held by investors.` },
+  rd_expense: { name: "R&D expense", what: "Money spent on research and development.",
+    high: "Heavy investment in future products; weighs on near-term profit.", low: "Little reinvestment in new products.",
+    here: (v) => `${usd(v)} was spent on research and development.` },
+  cash_and_equivalents: { name: "Cash and equivalents", what: "Cash on hand plus very safe, quickly sold investments.",
+    high: "A bigger buffer against bad times.", low: "A thin buffer; more reliance on borrowing or incoming cash.",
+    here: (v) => `${usd(v)} is available in cash.` },
+  total_assets: { name: "Total assets", what: "Everything the company owns, at book value.",
+    high: "A larger balance sheet; read alongside liabilities.", low: "A smaller asset base.",
+    here: (v) => `The company reports ${usd(v)} in assets.` },
+  total_liabilities: { name: "Total liabilities", what: "Everything the company owes: debt, bills, leases and other obligations.",
+    high: "More claims ahead of shareholders.", low: "Fewer obligations.",
+    here: (v) => `The company owes ${usd(v)} in total.` },
+  stockholders_equity: { name: "Stockholders' equity", what: "Assets minus liabilities: the book value belonging to shareholders.",
+    high: "A thicker cushion before creditors are at risk.", low: "Near zero or negative means liabilities exceed assets on paper. Some stable companies do this deliberately through buybacks.",
+    here: (v) => v >= 0 ? `Shareholders' book value is ${usd(v)}.` : `Liabilities exceed assets by ${usd(-v)} on paper (negative equity).` },
+  operating_income: { name: "Operating income", what: "Profit from running the business before interest and tax.",
+    high: "The core business is profitable.", low: "Negative means the core business loses money before financing costs.",
+    here: (v) => v >= 0 ? `The core business earned ${usd(v)} before interest and tax.` : `The core business lost ${usd(-v)} before interest and tax.` },
+  interest_expense: { name: "Interest expense", what: "The cost of borrowed money for the year.",
+    high: "Debt is costly; it eats into profit.", low: "Little borrowing cost.",
+    here: (v) => `${usd(v)} was paid as interest.` },
+  gross_margin: { name: "Gross margin", what: "Gross profit as a share of revenue.",
+    high: "Pricing power or efficient production.", low: "Competitive pressure or high direct costs.",
+    here: (v) => `About ${pct(v, 0)} of each revenue dollar is left after direct costs.` },
+  rd_pct_revenue: { name: "R&D as % of revenue", what: "Share of sales reinvested in research and development.",
+    high: "Typical of drug and technology firms; costly if products do not pay off.", low: "Typical of mature, low-research industries.",
+    here: (v) => v > 1 ? `R&D spending is ${v.toFixed(1)}x revenue, so the company spends far more on research than it sells.` : `${pct(v, 0)} of revenue goes to R&D.` },
+  working_capital_ratio: { name: "Working capital (current) ratio", what: "Current assets divided by current liabilities: can short-term resources cover short-term bills?",
+    high: "2.0 or more is comfortable.", low: "Under 1.0 means bills due within a year exceed assets that become cash within a year. Common for retailers that collect cash before paying suppliers.",
+    here: (v) => v >= 1 ? `For every $1 due within a year, the company has $${v.toFixed(2)} of short-term assets.` : `For every $1 due within a year, the company has only $${v.toFixed(2)} of short-term assets.` },
+  working_capital_to_assets: { name: "Working capital to assets", what: "Current assets minus current liabilities, as a share of total assets.",
+    high: "A sizeable short-term cushion.", low: "Negative means short-term bills exceed short-term assets.",
+    here: (v) => v >= 0 ? `Short-term assets exceed short-term bills by ${pct(v)} of total assets.` : `Short-term bills exceed short-term assets by ${pct(-v)} of total assets.` },
+  cash_runway_months: { name: "Cash runway (months)", what: "How long cash would last at the current yearly rate of cash burn. Only shown when operating cash flow is negative, and never for banks.",
+    high: "More than 24 months is a long cushion.", low: "Under 12 months means the company may need new funding soon.",
+    here: (v) => `At the current burn, cash lasts about ${v.toFixed(1)} months.` },
+  debt_to_equity: { name: "Debt to equity", what: "Total borrowings divided by shareholders' equity: how much the company leans on borrowing versus owners' money.",
+    high: "Above 3 is heavily borrowed; downturns hurt more.", low: "Under 0.5 is lightly borrowed. Not shown when equity is negative.",
+    here: (v) => `The company has $${v.toFixed(2)} of debt for every $1 of shareholder equity.` },
+  liabilities_to_assets: { name: "Liabilities to assets", what: "Share of the company's assets funded by creditors rather than owners.",
+    high: "Near or above 100% means almost nothing is left for shareholders on paper.", low: "Under 40% is conservative.",
+    here: (v) => v > 1 ? `Liabilities are ${pct(v, 0)} of assets, so owed amounts exceed what the company owns on paper.` : `Creditors fund ${pct(v, 0)} of the company's assets.` },
+  interest_coverage: { name: "Interest coverage", what: "Operating income divided by interest expense: how many times profit covers the interest bill.",
+    high: "8 or more is very safe.", low: "Under 1.5 means little room before interest becomes a problem; under 1 means operating profit does not cover interest.",
+    here: (v) => v < 0 ? "Operating income is negative, so it does not cover interest at all." : `Operating income covers interest ${v.toFixed(1)} times.` },
+  net_income_yoy_pct: { name: "Net income change vs last year", what: "Change in net income compared with the prior year, relative to the size of last year's result.",
+    high: "Earnings are growing.", low: "Negative means earnings fell, or losses grew.",
+    here: (v) => v >= 0 ? `Net income improved ${pct(v)} versus last year.` : `Net income worsened ${pct(-v)} versus last year.` },
+  // Qualitative signals produced from the filing text
+  legal_regulatory_added: { name: "New legal/regulatory risks", what: "Legal or regulatory risk factors added since last year's filing.", high: "More new legal exposure.", low: "None added." },
+  legal_regulatory_escalated: { name: "Escalated legal/regulatory risks", what: "Existing legal or regulatory risks described in stronger language than last year.", high: "Rising concern.", low: "Unchanged or softer." },
+  material_weakness: { name: "Material weakness", what: "The company or auditor reports a serious flaw in its financial controls.", high: "Yes: numbers are more likely to be wrong or restated.", low: "No weakness reported." },
+  auditor_opinion: { name: "Auditor opinion", what: "The auditor's verdict on the financial statements. 'Unqualified' (clean) is the normal good result.", high: "Qualified, adverse or a disclaimer is a serious warning.", low: "Unqualified (clean)." },
+  related_party_concern: { name: "Related-party concern", what: "Deals between the company and insiders or their affiliates.", high: "Large or unusual insider deals can signal conflicts of interest.", low: "None, or routine." },
+  risk_factor_net_change: { name: "Net change in risk factors", what: "Whether the risk-factor section grew or shrank versus last year.", high: "More risks disclosed.", low: "Fewer risks disclosed." },
+  risk_factors_escalated: { name: "Escalated risk factors", what: "Risks now described in stronger language.", high: "Management sees more danger.", low: "None escalated." },
+  risk_factors_added: { name: "Added risk factors", what: "Brand-new risks disclosed this year.", high: "New problems have appeared.", low: "None added." },
+  management_tone: { name: "Management tone", what: "How positive or cautious management's discussion of results sounds.", high: "Cautious or negative tone.", low: "Confident, positive tone." },
+  hedging_intensity: { name: "Hedging intensity", what: "How much management qualifies statements with words like 'may' and 'could'.", high: "Heavy hedging suggests uncertainty.", low: "Plain, direct language." },
+};
+const SUBSCORE_HELP = {
+  liquidity: { what: "Can the company pay its bills over the next year?", high: "Fragile: short-term obligations are large relative to cash and short-term assets.", low: "Comfortable short-term position." },
+  leverage: { what: "How heavily is the company financed by debt, and can it afford the interest?", high: "Fragile: heavy borrowing or thin interest coverage.", low: "Conservative balance sheet." },
+  litigation_regulatory: { what: "Is legal or regulatory trouble growing, based on the filing's risk factors?", high: "More or worsening legal exposure.", low: "Little new legal exposure." },
+  governance: { what: "Do the controls, auditor and insider dealings look trustworthy?", high: "Control weaknesses, a qualified audit or concerning insider deals.", low: "Clean audit and routine insider activity." },
+  disclosure_change: { what: "Did the filing's risk language and tone get worse versus last year?", high: "More risks disclosed, stronger wording or a cautious tone.", low: "Stable or improving language." },
+};
+const SECTION_HELP = {
+  risk_factor_changes: { what: "Compares this year's risk factors with last year's to see what was added, escalated or removed.", read: "Added or escalated risks point to growing concern; removed risks suggest a problem has eased." },
+  management_tone: { what: "Reads management's discussion of results and rates how confident or cautious it sounds.", read: "Cautious tone, heavy hedging or listed concerns suggest management sees trouble ahead." },
+  going_concern: { what: "Finds the auditor's opinion, whether they doubt the company can keep operating (going concern), and whether controls are materially weak.", read: "A going-concern doubt or material weakness is the most serious flag a filing can carry. A clean (unqualified) opinion is normal." },
+  related_party: { what: "Looks for deals between the company and its insiders or their affiliates.", read: "Large, unusual or poorly explained insider deals can indicate conflicts of interest." },
+  revenue_concentration: { what: "Checks whether sales depend on a few customers or one region.", read: "Losing a single dominant customer would hurt much more than losing one of many small ones." },
+};
+
+function explainBox(info, value) {
+  const box = el("div", { class: "explain" });
+  put(box, el("p", {}, el("span", { class: "lbl" }, "What it is: "), info.what));
+  if (typeof value === "number" && info.here) {
+    put(box, el("p", { class: "here" }, el("span", { class: "lbl" }, "In this filing: "), info.here(value)));
+  }
+  put(box, el("p", {}, el("span", { class: "lbl" }, "Higher reading: "), info.high));
+  put(box, el("p", {}, el("span", { class: "lbl" }, "Lower reading: "), info.low));
+  return box;
+}
+
+// A label that opens a short explanation when clicked. Unknown keys fall back
+// to plain text so a new metric never breaks the page.
+function term(key, label, value) {
+  const info = GLOSSARY[key];
+  if (!info) return document.createTextNode(label);
+  return el("details", { class: "term" }, el("summary", {}, label), explainBox(info, value));
+}
+
+function about(lines) {
+  const box = el("div", { class: "explain" });
+  for (const [label, text] of lines) {
+    if (text) put(box, el("p", {}, el("span", { class: "lbl" }, `${label}: `), text));
+  }
+  return el("details", { class: "about" }, el("summary", {}, "What does this mean?"), box);
+}
+
 function safeUrl(value) {
   try {
     const url = new URL(value);
@@ -271,16 +419,32 @@ function renderSubscore(sub) {
     sub.available ? el("div", { class: `score ${band(sub.score)}` }, sub.score.toFixed(1)) : badge("Unavailable", "off")));
   if (!sub.available) {
     put(card, el("div", { class: "unavailable" }, sub.reason || "Missing input"));
+    const unavailable = SUBSCORE_HELP[sub.key];
+    if (unavailable) {
+      put(card, about([
+        ["What it measures", unavailable.what],
+        ["Why unavailable", "A score needs its inputs. Without them it is left out instead of guessed."],
+      ]));
+    }
     return card;
   }
   put(card, el("div", { class: "bar", role: "img", "aria-label": `Score ${sub.score.toFixed(1)} of 100, ${band(sub.score)} range` },
     el("span", { class: band(sub.score), style: `width:${Math.min(100, sub.score)}%` })));
   put(card, el("div", { class: "sub" }, `${band(sub.score)} range`));
+  const help = SUBSCORE_HELP[sub.key];
+  if (help) {
+    put(card, about([
+      ["What it measures", help.what],
+      ["Higher score", help.high],
+      ["Lower score", help.low],
+      ["This company", `${SUBSCORE_LABELS[sub.key]} scored ${sub.score.toFixed(0)} of 100, in the ${band(sub.score)} range.`],
+    ]));
+  }
   const table = el("table", {},
     el("thead", {}, el("tr", {}, el("th", {}, "Signal"), el("th", { class: "num" }, "Value"),
       el("th", { class: "num" }, "Points"), el("th", {}, "Source"))),
     el("tbody", {}, sub.signals.map((s) => el("tr", {},
-      el("td", {}, `${s.key.replaceAll("_", " ")}`, s.kind === "qualitative" ? el("span", { class: "sub" }, " (text)") : null),
+      el("td", {}, term(s.key, s.key.replaceAll("_", " "), s.raw_value), s.kind === "qualitative" ? el("span", { class: "sub" }, " (text)") : null),
       el("td", { class: "num" }, formatValue(s.raw_value, "")),
       el("td", { class: "num" }, s.contribution.toFixed(1)),
       el("td", { class: "mono" }, s.source)))));
@@ -292,6 +456,10 @@ function renderExtraction(key, section, analysis) {
   const card = el("div", { class: "card" });
   put(card, el("div", { class: "row" }, el("h3", {}, SECTION_LABELS[key]), methodBadge(section, analysis.llm_enabled)));
   const parsed = section.parsed;
+  const sectionHelp = SECTION_HELP[key];
+  if (sectionHelp) {
+    put(card, about([["What it looks for", sectionHelp.what], ["How to read it", sectionHelp.read]]));
+  }
   if (!section.found) {
     put(card, el("div", { class: "unavailable" }, section.reason || "Section not found in the filing."));
     return card;
@@ -339,7 +507,7 @@ function renderMetrics(metrics) {
     el("thead", {}, el("tr", {}, el("th", {}, "Metric"), el("th", { class: "num" }, "Value"),
       el("th", {}, "Unit"), el("th", {}, "Source"), el("th", {}, "XBRL tag"))),
     el("tbody", {}, metrics.map((m) => el("tr", {},
-      el("td", {}, m.key.replaceAll("_", " ")), el("td", { class: "num" }, formatValue(m.value, m.unit)),
+      el("td", {}, term(m.key, m.key.replaceAll("_", " "), m.value)), el("td", { class: "num" }, formatValue(m.value, m.unit)),
       el("td", {}, m.unit), el("td", {}, m.source), el("td", { class: "mono" }, m.xbrl_tag)))));
 }
 
