@@ -6,7 +6,9 @@
   "filing_date": "2026-03-13",
   "fiscal_year_end": "2026-01-31",
   "html_url": "https://www.sec.gov/Archives/edgar/data/104169/000010416926000055/wmt-20260131.htm",
-  "cached_path": "data\\cache\\104169\\0000104169-26-000055\\wmt-20260131.htm"
+  "cached_path": "data\\cache\\104169\\0000104169-26-000055\\wmt-20260131.htm",
+  "sic": "5331",
+  "sic_description": "Retail-Variety Stores"
  },
  "facts": {
   "us-gaap": {

@@ -2,6 +2,7 @@ from datetime import date
 
 from app.edgar.client import Client
 from app.edgar.models import FilingRecord
+from app.edgar.sector import classify_sector
 from app.xbrl.derive import derive_ratios
 from app.xbrl.models import MetricSnapshot
 from app.xbrl.tags import METRIC_TAGS
@@ -175,7 +176,7 @@ def extract_all(client: Client, filing: FilingRecord) -> list[MetricSnapshot]:
     derivable ratio (gross margin, R&D % of revenue, net income YoY %)."""
     facts = fetch_company_facts(client, filing.cik)
     snapshots = extract_metrics_from_facts(facts, filing)
-    snapshots += derive_ratios(snapshots)
+    snapshots += derive_ratios(snapshots, sector=classify_sector(filing.sic))
 
     yoy = extract_net_income_yoy_from_facts(facts, filing, snapshots)
     if yoy is not None:

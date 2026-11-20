@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from app.edgar.models import FilingRecord
+from app.edgar.sector import classify_sector
 from app.xbrl.derive import derive_ratios
 from app.xbrl.extract import (
     extract_metrics_from_facts,
@@ -26,7 +27,7 @@ def _load(ticker: str) -> dict[str, object]:
     data = json.loads((FIXTURES / f"{ticker}_facts.json").read_text())
     filing = FilingRecord(**data["filing"])
     snaps = extract_metrics_from_facts(data["facts"], filing)
-    snaps += derive_ratios(snaps)
+    snaps += derive_ratios(snaps, sector=classify_sector(filing.sic))
     yoy = extract_net_income_yoy_from_facts(data["facts"], filing, snaps)
     if yoy:
         snaps.append(yoy)
@@ -66,14 +67,13 @@ def test_bank_lacks_classified_balance_sheet_metrics() -> None:
     assert metrics["liabilities_to_assets"].value == pytest.approx(0.918, abs=0.001)
 
 
-def test_bank_cash_runway_is_computed_from_negative_operating_cash_flow() -> None:
-    """Banks' operating cash flow is routinely negative (trading assets), so
-    the runway ratio is produced for JPM. Pinned so a change is deliberate;
-    the figure is not a meaningful solvency signal for a bank."""
+def test_bank_cash_runway_is_not_derived_despite_negative_operating_cash_flow() -> None:
+    """JPM's operating cash flow is negative because of trading and loan
+    growth, not cash burn, so a runway figure would be misleading."""
     metrics = _load("jpm")
 
     assert metrics["operating_cash_flow"].value < 0
-    assert "cash_runway_months" in metrics
+    assert "cash_runway_months" not in metrics
 
 
 def test_loss_making_biotech_runway_and_improving_yoy() -> None:

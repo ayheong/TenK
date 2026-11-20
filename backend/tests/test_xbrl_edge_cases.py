@@ -429,3 +429,32 @@ def test_yoy_ignores_quarterly_rows_when_finding_prior_year() -> None:
 
     assert yoy is not None
     assert yoy.value == pytest.approx(0.5)
+
+
+class _StubClient:
+    def __init__(self, facts: dict) -> None:
+        self._payload = {"facts": facts}
+
+    def get_json(self, url: str) -> dict:
+        return self._payload
+
+
+def test_extract_all_uses_the_filing_sic_to_skip_runway_for_a_bank() -> None:
+    from app.xbrl.extract import extract_all
+
+    facts = {
+        "us-gaap": {
+            **_facts("CashAndCashEquivalentsAtCarryingValue", [_entry(120.0)])["us-gaap"],
+            **_facts(
+                "NetCashProvidedByUsedInOperatingActivities", [_entry(-60.0)]
+            )["us-gaap"],
+        }
+    }
+    client = _StubClient(facts)
+    bank = _filing().model_copy(update={"sic": "6021"})
+    retailer = _filing().model_copy(update={"sic": "5331"})
+    unknown = _filing()
+
+    assert "cash_runway_months" not in _by_key(extract_all(client, bank))
+    assert "cash_runway_months" in _by_key(extract_all(client, retailer))
+    assert "cash_runway_months" in _by_key(extract_all(client, unknown))

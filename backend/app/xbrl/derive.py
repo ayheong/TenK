@@ -2,14 +2,19 @@
 # fetch). Values are plain fractions (0.469, not 46.9) - format as a
 # percentage at display time, except cash_runway_months (unit "months").
 
+from app.edgar.sector import Sector
 from app.xbrl.models import MetricSnapshot
 
 
-def derive_ratios(snapshots: list[MetricSnapshot]) -> list[MetricSnapshot]:
+def derive_ratios(
+    snapshots: list[MetricSnapshot], sector: Sector = "other"
+) -> list[MetricSnapshot]:
     """Compute ratio metrics from already-extracted snapshots. Skips a
     ratio if a required input is missing or its denominator is zero.
-    Cash runway is only derived when operating cash flow is negative;
-    debt-to-equity only when equity is positive."""
+    Cash runway is only derived when operating cash flow is negative and the
+    filer is not a financial: a bank's operating cash flow swings negative as
+    it grows trading assets and loans, so it is not a burn rate. Debt-to-equity
+    only when equity is positive."""
     by_key = {s.metric_key: s for s in snapshots}
     revenue = by_key.get("revenue")
     derived = []
@@ -44,7 +49,12 @@ def derive_ratios(snapshots: list[MetricSnapshot]) -> list[MetricSnapshot]:
 
     cash = by_key.get("cash_and_equivalents")
     operating_cash_flow = by_key.get("operating_cash_flow")
-    if cash and operating_cash_flow and operating_cash_flow.value < 0:
+    if (
+        sector != "financials"
+        and cash
+        and operating_cash_flow
+        and operating_cash_flow.value < 0
+    ):
         monthly_burn = -operating_cash_flow.value / 12
         derived.append(
             _snapshot(

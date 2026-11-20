@@ -6,7 +6,9 @@
   "filing_date": "2026-02-24",
   "fiscal_year_end": "2025-12-31",
   "html_url": "https://www.sec.gov/Archives/edgar/data/63908/000006390826000035/mcd-20251231.htm",
-  "cached_path": "data\\cache\\63908\\0000063908-26-000035\\mcd-20251231.htm"
+  "cached_path": "data\\cache\\63908\\0000063908-26-000035\\mcd-20251231.htm",
+  "sic": "5812",
+  "sic_description": "Retail-Eating  Places"
  },
  "facts": {
   "us-gaap": {

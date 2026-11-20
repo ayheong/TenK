@@ -6,7 +6,9 @@
   "filing_date": "2026-02-13",
   "fiscal_year_end": "2025-12-31",
   "html_url": "https://www.sec.gov/Archives/edgar/data/19617/000162828026008131/jpm-20251231.htm",
-  "cached_path": "data\\cache\\19617\\0001628280-26-008131\\jpm-20251231.htm"
+  "cached_path": "data\\cache\\19617\\0001628280-26-008131\\jpm-20251231.htm",
+  "sic": "6021",
+  "sic_description": "National Commercial Banks"
  },
  "facts": {
   "us-gaap": {

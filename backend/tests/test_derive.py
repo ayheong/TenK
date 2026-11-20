@@ -133,3 +133,31 @@ def test_short_term_borrowings_still_added_to_total_long_term_debt() -> None:
     }
 
     assert derived["debt_to_equity"].value == pytest.approx(2.0)
+
+
+def test_cash_runway_skipped_for_financials_but_other_ratios_kept() -> None:
+    snapshots = [
+        _snap("cash_and_equivalents", 120.0),
+        _snap("operating_cash_flow", -60.0),
+        _snap("total_assets", 1000.0),
+        _snap("stockholders_equity", 250.0),
+    ]
+
+    derived = {s.metric_key: s for s in derive_ratios(snapshots, sector="financials")}
+
+    assert "cash_runway_months" not in derived
+    assert derived["liabilities_to_assets"].value == pytest.approx(0.75)
+
+
+@pytest.mark.parametrize(
+    "sector", ["other", "biotech_pharma", "energy", "utilities", "real_estate"]
+)
+def test_cash_runway_still_derived_for_non_financial_sectors(sector) -> None:
+    snapshots = [
+        _snap("cash_and_equivalents", 120.0),
+        _snap("operating_cash_flow", -60.0),
+    ]
+
+    derived = {s.metric_key: s for s in derive_ratios(snapshots, sector=sector)}
+
+    assert derived["cash_runway_months"].value == pytest.approx(24.0)
